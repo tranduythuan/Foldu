@@ -1,5 +1,7 @@
 # Foldu
 
+**Tiếng Việt** · [English](README.en.md)
+
 Phần mềm desktop sắp xếp và dọn dẹp file tự động — an toàn, hoàn tác được — viết bằng
 **Rust + Tauri 2**, giao diện HTML/CSS. Chạy offline hoàn toàn, một file `.exe` duy nhất.
 

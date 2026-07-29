@@ -1,0 +1,53 @@
+name: Release
+
+# Chay khi ban day mot tag dang v* len GitHub, vi du:
+#   git tag v1.1.0
+#   git push origin v1.1.0
+# GitHub se tu build tren may ao Windows va tu dinh kem foldu.exe + bo cai
+# vao trang Release cua tag do. Khong can build/upload tay nua.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write   # can quyen nay de tao Release va upload file
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout ma nguon
+        uses: actions/checkout@v4
+
+      - name: Cai Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Cai Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache thu muc build Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Cai phu thuoc frontend
+        run: npm install
+
+      - name: Build (tao foldu.exe + bo cai NSIS)
+        run: npm run build
+
+      - name: Phat hanh va dinh kem file .exe
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Foldu ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: true
+          files: |
+            src-tauri/target/release/foldu.exe
+            src-tauri/target/release/bundle/nsis/Foldu_*_x64-setup.exe
