@@ -1,0 +1,14 @@
+{
+  "name": "foldu",
+  "version": "1.0.0",
+  "description": "Foldu - sap xep va don file tu dong, an toan, hoan tac duoc",
+  "private": true,
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "icon": "tauri icon assets/icon.png"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

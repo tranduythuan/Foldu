@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "layout-transition",
+        "value": "*",
+        "files": [
+          "ui/app.css"
+        ],
+        "createdAt": "2026-07-28T06:39:33.633Z",
+        "reason": "Thanh bieu do va thanh tien trinh: bo goc phu thuoc chieu rong that, doi sang transform se lam meo. Chi phi that da xu ly bang gop cap nhat theo khung hinh."
+      }
+    ]
+  }
+}

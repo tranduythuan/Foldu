@@ -1,0 +1,18 @@
+# Rust / Tauri build output
+/src-tauri/target/
+target/
+/src-tauri/gen/
+
+# Node
+node_modules/
+
+# Impeccable hook cache (generated)
+.impeccable/hook.cache.json
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+.vscode/
+.idea/
