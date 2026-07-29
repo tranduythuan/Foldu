@@ -18,8 +18,6 @@ Go to the **[Releases](https://github.com/tranduythuan/Foldu/releases/latest)** 
 
 Runs on **Windows 10 / 11**. Needs **WebView2** (already present on almost every up-to-date Windows machine; if missing, Windows fetches it in ~30 seconds).
 
-**Code signing:** Windows builds are signed with a free certificate provided by [SignPath Foundation](https://signpath.org) for open-source projects.
-
 > **On first launch, Windows may show a blue "Windows protected your PC" box.** That is because this free app isn't code-signed — it is **not a virus**. Click **More info → Run anyway**. (Removing the warning entirely would require a code-signing certificate at ~a few hundred USD/year — unnecessary for a personal project.)
 
 ---

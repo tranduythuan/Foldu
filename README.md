@@ -18,8 +18,6 @@ Vào trang **[Releases](https://github.com/tranduythuan/Foldu/releases/latest)**
 
 Chạy trên **Windows 10 / 11**. Máy cần **WebView2** (có sẵn trên gần như mọi máy Windows đã cập nhật; nếu thiếu, Windows tự tải về trong ~30 giây).
 
-**Ký số:** bản Windows được ký bằng chứng chỉ miễn phí do [SignPath Foundation](https://signpath.org) cấp cho dự án mã nguồn mở.
-
 > **Lần đầu mở, Windows có thể hiện bảng xanh "Windows protected your PC".** Đó là vì phần mềm miễn phí này chưa mua chứng chỉ ký số, **không phải virus**. Bấm **More info → Run anyway** là chạy được. (Muốn hết cảnh báo hẳn thì phải mua chứng chỉ ký số ~vài trăm USD/năm — không cần thiết cho bản cá nhân.)
 
 ---
