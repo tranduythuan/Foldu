@@ -7,7 +7,20 @@ Phần mềm desktop sắp xếp và dọn dẹp file tự động — an toàn,
 
 ---
 
-## Chạy và chia sẻ
+## Tải về (cho người dùng — không cần biết lập trình)
+
+Vào trang **[Releases](https://github.com/tranduythuan/Foldu/releases/latest)** rồi tải một trong hai:
+
+- **`foldu.exe`** — bản chạy thẳng, **không cần cài**. Tải về, bấm đúp là chạy.
+- **`Foldu_1.0.0_x64-setup.exe`** — bản cài đặt, tạo lối tắt ở Start Menu, gỡ như phần mềm bình thường.
+
+Chạy trên **Windows 10 / 11**. Máy cần **WebView2** (có sẵn trên gần như mọi máy Windows đã cập nhật; nếu thiếu, Windows tự tải về trong ~30 giây).
+
+> **Lần đầu mở, Windows có thể hiện bảng xanh "Windows protected your PC".** Đó là vì phần mềm miễn phí này chưa mua chứng chỉ ký số, **không phải virus**. Bấm **More info → Run anyway** là chạy được. (Muốn hết cảnh báo hẳn thì phải mua chứng chỉ ký số ~vài trăm USD/năm — không cần thiết cho bản cá nhân.)
+
+---
+
+## Chạy và chia sẻ (khi tự build)
 
 Sau khi build, file cần chia sẻ nằm ở:
 
