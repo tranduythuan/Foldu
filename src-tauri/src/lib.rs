@@ -34,12 +34,22 @@ use tauri::{AppHandle, Emitter};
 
 // ---------------------------------------------------------------- Trang thai
 
+/// Ket qua phan nang (trung lap + anh gan giong) da tinh, giu lai de khoi tinh
+/// lai moi lan doi cach sap xep. `key` la cac cai dat trung lap co anh huong toi
+/// ket qua; doi scan hoac doi mot trong so do thi cache bi bo.
+struct DupNearCache {
+    key: (bool, config::DupStrategy, bool, u32),
+    dup: dedup::DupReport,
+    near: phash::NearReport,
+}
+
 #[derive(Default)]
 struct AppState {
     scan: Option<ScanResult>,
     plan: Option<Plan>,
     roots: Vec<PathBuf>,
     settings: Option<Settings>,
+    dup_near_cache: Option<DupNearCache>,
 }
 
 static STATE: Lazy<Mutex<AppState>> = Lazy::new(|| Mutex::new(AppState::default()));
@@ -188,6 +198,7 @@ async fn scan_folders(
         s.scan = Some(result);
         s.roots = roots;
         s.plan = None;
+        s.dup_near_cache = None; // tap file doi -> ket qua trung lap/anh cu khong con dung
         emit(&app, "done", i18n::t("prog.scanDone"), 1, 1);
         Ok(outcome)
     })
@@ -220,10 +231,48 @@ async fn make_plan(app: AppHandle, profile: Profile) -> Result<PlanOutcome, Stri
             }
         };
 
+        // Phan nang (trung lap + anh gan giong) chi phu thuoc tap file va cai dat
+        // trung lap. Cache lai theo key duoi day; doi tieu chi sap xep thi tai su
+        // dung, khong bam lai -> preview cap nhat tuc thi.
+        let key = (
+            profile.duplicates.enabled,
+            profile.duplicates.strategy,
+            profile.duplicates.near_images,
+            profile.duplicates.near_threshold,
+        );
+        let cached = {
+            let s = STATE.lock().unwrap();
+            s.dup_near_cache
+                .as_ref()
+                .filter(|c| c.key == key)
+                .map(|c| (c.dup.clone(), c.near.clone()))
+        };
+        let (dup_report, near_report) = match cached {
+            Some(rep) => rep,
+            None => {
+                let a = app.clone();
+                let rep = planner::compute_dup_near(&files, &profile, |note, cur, total| {
+                    emit(&a, "plan", note, cur, total);
+                });
+                STATE.lock().unwrap().dup_near_cache = Some(DupNearCache {
+                    key,
+                    dup: rep.0.clone(),
+                    near: rep.1.clone(),
+                });
+                rep
+            }
+        };
+
         let a = app.clone();
-        let plan = planner::build_plan(&files, &profile, &st, &roots, |note, cur, total| {
-            emit(&a, "plan", note, cur, total);
-        });
+        let plan = planner::build_plan_with_reports(
+            &files,
+            &profile,
+            &st,
+            &roots,
+            |note, cur, total| emit(&a, "plan", note, cur, total),
+            dup_report,
+            near_report,
+        );
 
         let outcome = PlanOutcome {
             summary: plan.summary.clone(),

@@ -229,18 +229,15 @@ fn build_sidecar_bundles(files: &[FileEntry]) -> HashMap<u32, u32> {
 
 // ------------------------------------------------------------------ Lap ke hoach
 
-pub fn build_plan(
+/// Tinh phan NANG: loc trung lap (BLAKE3 toan file) + anh gan giong (giai ma +
+/// dHash tung anh). Chi phu thuoc TAP FILE va cai dat trung lap, KHONG phu thuoc
+/// cach sap xep. Nho vay lop lenh o tren cache lai ket qua nay va chi tinh lai
+/// khi doi scan hoac doi cai dat trung lap — doi tieu chi sap xep khong tinh lai.
+pub fn compute_dup_near(
     files: &[FileEntry],
     profile: &Profile,
-    settings: &Settings,
-    roots: &[PathBuf],
     mut on_progress: impl FnMut(&str, usize, usize),
-) -> Plan {
-    let start = std::time::Instant::now();
-    let mut warnings: Vec<String> = Vec::new();
-
-    let ctx = build_context(files, profile, settings, &mut on_progress);
-
+) -> (DupReport, crate::phash::NearReport) {
     // --- Trung lap
     let dup_report: DupReport = if profile.duplicates.enabled {
         on_progress(crate::i18n::t("prog.findDupes"), 0, files.len());
@@ -253,6 +250,8 @@ pub fn build_plan(
         DupReport::default()
     };
 
+    // Bo cac file da la ban thua tuyet doi ra khoi phep so anh gan giong, de mot
+    // file khong bi bao hai lan.
     let mut dup_extra: HashSet<u32> = HashSet::new();
     for g in &dup_report.groups {
         for e in &g.extras {
@@ -260,8 +259,7 @@ pub fn build_plan(
         }
     }
 
-    // --- Ảnh gần giống nhau. Chạy sau lọc trùng tuyệt đối và bỏ qua những file
-    //     đã nằm trong nhóm đó, để một file không bị báo hai lần.
+    // --- Ảnh gần giống nhau.
     let near_report = if profile.duplicates.enabled && profile.duplicates.near_images {
         on_progress(crate::i18n::t("prog.nearDupes"), 0, files.len());
         let r = crate::phash::find_near_duplicate_images(
@@ -275,6 +273,43 @@ pub fn build_plan(
     } else {
         crate::phash::NearReport::default()
     };
+
+    (dup_report, near_report)
+}
+
+pub fn build_plan(
+    files: &[FileEntry],
+    profile: &Profile,
+    settings: &Settings,
+    roots: &[PathBuf],
+    mut on_progress: impl FnMut(&str, usize, usize),
+) -> Plan {
+    let (dup_report, near_report) = compute_dup_near(files, profile, &mut on_progress);
+    build_plan_with_reports(files, profile, settings, roots, on_progress, dup_report, near_report)
+}
+
+/// Nhu `build_plan` nhung nhan san bao cao trung lap/anh gan giong da tinh truoc
+/// (tu cache), nen doi tieu chi sap xep chi ton chi phi sap xep, khong bam lai file.
+pub fn build_plan_with_reports(
+    files: &[FileEntry],
+    profile: &Profile,
+    settings: &Settings,
+    roots: &[PathBuf],
+    mut on_progress: impl FnMut(&str, usize, usize),
+    dup_report: DupReport,
+    near_report: crate::phash::NearReport,
+) -> Plan {
+    let start = std::time::Instant::now();
+    let mut warnings: Vec<String> = Vec::new();
+
+    let ctx = build_context(files, profile, settings, &mut on_progress);
+
+    let mut dup_extra: HashSet<u32> = HashSet::new();
+    for g in &dup_report.groups {
+        for e in &g.extras {
+            dup_extra.insert(e.id);
+        }
+    }
 
     let mut near_extra: HashSet<u32> = HashSet::new();
     for g in &near_report.groups {
