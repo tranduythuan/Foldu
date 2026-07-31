@@ -464,25 +464,35 @@ pub fn preflight(ops: &[PreflightOp], mode_copies: bool, roots: &[PathBuf]) -> P
         skip_ids.extend(too_long);
     }
 
-    // 3. File dang bi khoa (lay mau neu qua nhieu)
-    let sample: Vec<&PreflightOp> = if ops.len() > 3000 {
-        ops.iter().take(3000).collect()
-    } else {
-        ops.iter().collect()
+    // 3. File dang bi khoa — CHI la canh bao goi y (file khoa se tu bi bo qua luc
+    //    chay that). Mo file de do khoa (voi quyen ghi) la I/O cham, va voi .exe/.dll
+    //    thi Windows Defender co the lam NGHEN rat lau moi lan mo. Vi khong the dat
+    //    han gio cho mot lenh mo file, ta cho viec do khoa chay tren luong rieng roi
+    //    CHO TOI DA 3 GIAY: xong thi lay ket qua, qua han thi bo qua canh bao va di
+    //    tiep — khong bao gio de man hinh ket o "Dang kiem tra an toan".
+    let locked_ids: Vec<u32> = {
+        let probe: Vec<(u32, PathBuf)> =
+            ops.iter().take(1000).map(|o| (o.id, o.src.clone())).collect();
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            use rayon::prelude::*;
+            let ids: Vec<u32> = probe
+                .par_iter()
+                .filter(|t| probe_lock(&t.1).is_some())
+                .map(|t| t.0)
+                .collect();
+            let _ = tx.send(ids);
+        });
+        rx.recv_timeout(std::time::Duration::from_secs(3))
+            .unwrap_or_default()
     };
-    let mut locked = 0usize;
-    for o in sample {
-        if probe_lock(&o.src).is_some() {
-            locked += 1;
-            skip_ids.push(o.id);
-        }
-    }
-    if locked > 0 {
+    if !locked_ids.is_empty() {
         issues.push(Issue {
             level: "warn".into(),
             code: "LOCKED".into(),
-            msg: crate::i18n::tf("msg.locked", &[&locked.to_string()]),
+            msg: crate::i18n::tf("msg.locked", &[&locked_ids.len().to_string()]),
         });
+        skip_ids.extend(locked_ids);
     }
 
     // 4. Dung luong trong (chi can khi COPY hoac di chuyen khac o dia)

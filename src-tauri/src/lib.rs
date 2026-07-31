@@ -350,29 +350,39 @@ fn plan_page(offset: usize, limit: usize, filter: String, search: String) -> Pla
 }
 
 #[tauri::command]
-fn run_preflight(deselected: Vec<u32>) -> Result<PreflightResult, String> {
-    let s = STATE.lock().unwrap();
-    let plan = s.plan.as_ref().ok_or_else(|| i18n::t("msg.noPlan").to_string())?;
-    let de: HashSet<u32> = deselected.into_iter().collect();
+async fn run_preflight(deselected: Vec<u32>) -> Result<PreflightResult, String> {
+    // Preflight mo tung file de do khoa + tao file thu ghi -> nang ve I/O (nhat la
+    // voi .exe/.dll bi antivirus quet). Phai chay NGOAI luong UI, neu khong cua so
+    // se dong bang "Not Responding". Cac lenh nang khac cung theo mau spawn_blocking nay.
+    tauri::async_runtime::spawn_blocking(move || {
+        let (ops, copies, roots) = {
+            let s = STATE.lock().unwrap();
+            let plan = s.plan.as_ref().ok_or_else(|| i18n::t("msg.noPlan").to_string())?;
+            let de: HashSet<u32> = deselected.into_iter().collect();
 
-    let ops: Vec<PreflightOp> = plan
-        .ops
-        .iter()
-        .filter(|o| {
-            o.selected
-                && !de.contains(&o.id)
-                && !matches!(o.action, planner::OpAction::Keep | planner::OpAction::Skip)
-        })
-        .map(|o| PreflightOp {
-            id: o.id,
-            src: o.src.clone(),
-            dest: o.dest.clone(),
-            size: o.size,
-        })
-        .collect();
+            let ops: Vec<PreflightOp> = plan
+                .ops
+                .iter()
+                .filter(|o| {
+                    o.selected
+                        && !de.contains(&o.id)
+                        && !matches!(o.action, planner::OpAction::Keep | planner::OpAction::Skip)
+                })
+                .map(|o| PreflightOp {
+                    id: o.id,
+                    src: o.src.clone(),
+                    dest: o.dest.clone(),
+                    size: o.size,
+                })
+                .collect();
 
-    let copies = matches!(plan.mode, config::Mode::Copy);
-    Ok(safety::preflight(&ops, copies, &plan.roots))
+            let copies = matches!(plan.mode, config::Mode::Copy);
+            (ops, copies, plan.roots.clone())
+        };
+        Ok(safety::preflight(&ops, copies, &roots))
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
