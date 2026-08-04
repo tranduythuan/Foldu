@@ -63,6 +63,14 @@ fn run_plan(root: &Path, prof: &Profile) -> (Vec<foldu_lib::scanner::FileEntry>,
     (scan.files, plan)
 }
 
+/// Ke hoach cua cong cu "Tim file & anh trung" — chi dong toi ban thua
+fn run_dupes_plan(root: &Path, prof: &Profile) -> (Vec<foldu_lib::scanner::FileEntry>, Plan) {
+    let roots = vec![root.to_path_buf()];
+    let scan = Scanner::new(prof, vec![]).run(&roots, |_, _| {});
+    let plan = planner::build_dupes_plan(&scan.files, prof, &roots, |_, _, _| {});
+    (scan.files, plan)
+}
+
 fn apply(plan: &Plan) -> executor::ExecResult {
     executor::execute(
         plan,
@@ -903,4 +911,79 @@ fn walk(dir: &Path) -> Vec<PathBuf> {
         }
     }
     out
+}
+
+// ═══════════════════════════ Cong cu "Tim file & anh trung"
+//
+// Khac han viec don thu muc: o day nguoi dung KHONG muon doi cho bat cu thu gi.
+// Day la tinh chat an toan quan trong nhat cua man hinh moi.
+
+#[test]
+fn tim_trung_lap_khong_bao_gio_dong_toi_file_khong_phai_ban_thua() {
+    let fx = Fixture::new("dupes-tool");
+    let body = "NOI DUNG TRUNG NHAU".repeat(400);
+    fx.file("anh/bien.jpg", &body);
+    fx.file("luu tru/bien (1).jpg", &body); // ban thua
+    // Nhung file duoi day khong trung ai ca, va nam sau trong thu muc con.
+    // Neu lo dung build_plan thi chung se bi loi ra ngoai va xep lai.
+    fx.file("tai lieu/hop dong/2026/ban chinh.pdf", "MOT NOI DUNG RIENG");
+    fx.file("tai lieu/ghi chu.txt", "NOI DUNG KHAC NUA");
+    fx.file("nhac/bai hat.mp3", "AM THANH");
+
+    let mut prof = profile(&["TYPE", "TIME_MODIFIED:%Y"]); // co tang chia, phai bi lo di
+    prof.duplicates.enabled = true;
+    prof.duplicates.action = DupAction::Quarantine;
+    prof.duplicates.near_images = false;
+
+    let (_, plan) = run_dupes_plan(&fx.root, &prof);
+
+    assert_eq!(plan.ops.len(), 1, "chi dung mot thao tac, cho ban thua");
+    let op = &plan.ops[0];
+    assert_eq!(op.action, OpAction::Quarantine);
+    assert!(
+        op.src.to_string_lossy().contains("bien (1)"),
+        "phai la ban thua chu khong phai ban goc: {:?}",
+        op.src
+    );
+    assert!(!plan.clean_empty_dirs, "khong duoc don vo thu muc rong");
+
+    // Chay that roi doi chieu: moi file khong lien quan phai con nguyen vi tri
+    let before = ["tai lieu/hop dong/2026/ban chinh.pdf", "tai lieu/ghi chu.txt", "nhac/bai hat.mp3"];
+    let res = apply(&plan);
+    assert_eq!(res.failed, 0);
+    for p in before {
+        assert!(
+            fx.root.join(p).exists(),
+            "file khong lien quan bi dong toi: {}",
+            p
+        );
+    }
+    assert!(!fx.root.join("anh/bien.jpg").exists() || fx.root.join("anh/bien.jpg").exists(),
+        "ban giu lai van o cho cu");
+    assert!(fx.root.join("anh/bien.jpg").exists(), "ban goc phai o nguyen cho");
+}
+
+#[test]
+fn tim_trung_lap_van_hoan_tac_duoc_nhu_moi_thao_tac_khac() {
+    let fx = Fixture::new("dupes-undo");
+    let body = "TRUNG NHAU HET".repeat(300);
+    fx.file("a.bin", &body);
+    fx.file("sao luu/a-copy.bin", &body);
+
+    let mut prof = profile(&["TYPE"]);
+    prof.duplicates.enabled = true;
+    prof.duplicates.action = DupAction::Quarantine;
+    prof.duplicates.near_images = false;
+
+    let (_, plan) = run_dupes_plan(&fx.root, &prof);
+    assert_eq!(plan.ops.len(), 1);
+    let src = plan.ops[0].src.clone();
+
+    let res = apply(&plan);
+    assert_eq!(res.failed, 0);
+    assert!(!src.exists(), "ban thua da duoc don di");
+
+    let undo = executor::undo_session(&res.session, None, |_, _| {}).expect("phai hoan tac duoc");
+    assert_eq!(undo.failed, 0);
+    assert!(src.exists(), "hoan tac phai tra ban thua ve dung cho cu");
 }

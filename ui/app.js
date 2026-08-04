@@ -32,6 +32,10 @@ const S = {
   listOpen: false,        // danh sách chi tiết ở bước 4 mặc định gấp lại
   nearLoaded: [],         // các nhóm ảnh gần giống đã nạp (giữ để vẽ lại khi đổi ngôn ngữ)
   nearTotal: 0,
+  duSources: [],          // công cụ Tìm trùng lặp có nguồn riêng, không lẫn với wizard
+  duSizes: new Map(),     // id -> dung lượng, để tính lại khi người dùng bỏ tick
+  duShown: 0,
+  duScanned: false,
   lastSession: null,
 };
 
@@ -189,8 +193,10 @@ async function applyLang(code) {
   syncListToggle();
   syncNearButton();
   syncVersion();
-  // Các thẻ ảnh do JS dựng nên applyI18n không với tới — phải vẽ lại bằng chữ mới
+  // Các thẻ ảnh và nhóm trùng lặp do JS dựng nên applyI18n không với tới —
+  // phải vẽ lại bằng chữ mới
   if (!$('#near-modal').classList.contains('hidden')) renderNearList();
+  redrawDupes();
   if (S.analytics) renderAnalytics();
   if (S.plan) refreshPlan();
 
@@ -330,6 +336,11 @@ async function runScan(recommend) {
   renderAnalytics();
   syncAnFold();
   clearStale();
+  // Lõi chỉ giữ một kết quả quét: quét cho wizard thì kết quả của công cụ Tìm trùng
+  // lặp không còn đúng nữa, nên bắt nó tìm lại thay vì hiện số liệu đã cũ.
+  S.duScanned = false;
+  $('#du-result').classList.add('hidden');
+  $('#du-empty').classList.add('hidden');
   if (recommend) applyRecommendedPreset();   // chọn sẵn kiểu hợp với thư mục vừa quét
   go(recommend ? 'analyze' : back);
   refreshPlan();
@@ -557,7 +568,6 @@ function usePreset(p, replan) {
   S.activePreset = p.id;
   S.profile.layers = p.layers.slice();
   S.profile.mode = p.mode;
-  if (p.id === 'dupes') { S.profile.duplicates.enabled = true; S.profile.duplicates.action = 'Report'; }
   syncControls();
   renderPresets();
   renderLayers();
@@ -1250,6 +1260,8 @@ async function loadNearPage() {
   }
   S.nearLoaded.push(...res.groups);
   S.nearTotal = res.total;
+  // Nhớ dung lượng để công cụ Tìm trùng lặp tính lại đúng khi bỏ tick ảnh
+  for (const g of res.groups) for (const e of g.extras) S.duSizes.set(e.id, e.size);
   renderNearList();
   more.disabled = false;
 }
@@ -1284,8 +1296,8 @@ $('#near-list').addEventListener('change', (e) => {
   const id = +cb.dataset.near;
   if (cb.checked) S.deselected.delete(id); else S.deselected.add(id);
   cb.closest('.np').classList.toggle('off', !cb.checked);
-  renderSummary();
-  runPreflight();
+  // Hộp ảnh này dùng chung cho cả wizard lẫn công cụ Tìm trùng lặp
+  if (S.duScanned) duRecap(); else { renderSummary(); runPreflight(); }
 });
 
 /**
@@ -1550,7 +1562,13 @@ async function doApply() {
     res.failed ? 'warn' : 'ok');
   S.plan = null;
   S.sources = [];
+  S.duSources = [];
+  S.duScanned = false;
+  S.duSizes.clear();
+  $('#du-result').classList.add('hidden');
+  $('#du-empty').classList.add('hidden');
   renderSources();
+  renderDuSources();
   renderDrives();
 }
 
@@ -1581,6 +1599,196 @@ async function doUndo(session) {
   toast(t('toast.undone', fmtNum(r.restored)), 'ok');
   loadHistory();
 }
+
+/* ═══════════════════════════════════ Công cụ Tìm file & ảnh trùng (độc lập)
+ *
+ * Đây là một CÔNG VIỆC khác hẳn việc dọn thư mục: người dùng không muốn đổi chỗ
+ * bất cứ thứ gì, họ chỉ muốn biết cái gì đang chiếm chỗ vô ích rồi quyết giữ bản
+ * nào. Bắt họ đi qua wizard 4 bước cho việc đó là sai — nên nó có lối vào riêng.
+ *
+ * Lõi dùng `build_dupes_plan`: chỉ sinh thao tác cho bản thừa, mọi file khác không
+ * bị đụng tới. Còn lại tái dùng nguyên bộ máy nhật ký + hoàn tác.
+ */
+const DUP_PAGE = 10;
+
+async function duAddSources(paths) {
+  for (const p of paths) {
+    if (S.duSources.some((s) => s.path.toLowerCase() === p.toLowerCase())) continue;
+    const chk = await invoke('check_path', { path: p }).catch(() => ({ ok: false, level: 'block', reason: '?' }));
+    S.duSources.push({ path: p, check: chk });
+  }
+  renderDuSources();
+}
+
+function renderDuSources() {
+  $('#du-src').innerHTML = S.duSources.map((s, i) => `
+    <div class="src-item">
+      <svg><use href="#i-folder"/></svg>
+      <span class="p" title="${esc(s.path)}">${esc(s.path)}</span>
+      ${s.check.level === 'warn' ? `<span class="warn">${esc(s.check.reason)}</span>` : ''}
+      ${s.check.level === 'block' ? `<span class="bad">${esc(s.check.reason)}</span>` : ''}
+      <button class="icon-btn" data-durm="${i}"><svg><use href="#i-x"/></svg></button>
+    </div>`).join('');
+  $$('[data-durm]').forEach((b) => {
+    b.onclick = () => { S.duSources.splice(+b.dataset.durm, 1); renderDuSources(); };
+  });
+  $('#du-actions').classList.toggle('hidden', S.duSources.length === 0);
+  $('#du-scan').disabled = !S.duSources.some((s) => s.check.ok);
+}
+
+$('#du-pick').onclick = async () => {
+  const paths = await invoke('pick_folders');
+  if (paths && paths.length) duAddSources(paths);
+};
+
+/** Hồ sơ riêng: không tầng chia, không đổi tên, không dọn vỏ rỗng — chỉ tìm trùng */
+function duProfile() {
+  const p = JSON.parse(JSON.stringify(S.profile));
+  p.layers = [];
+  p.recursive = true;
+  p.rename = { enabled: false, inPlace: true, parts: [], transforms: {} };
+  p.duplicates.enabled = true;
+  p.duplicates.nearImages = true;
+  p.duplicates.action = $('#du-action').value;
+  p.safety.cleanEmptyDirs = false;
+  p.destination = null;
+  return p;
+}
+
+$('#du-scan').onclick = async () => {
+  const roots = S.duSources.filter((s) => s.check.ok).map((s) => s.path);
+  if (!roots.length) return;
+  const prof = duProfile();
+
+  showRun(t('run.scanning'), false);
+  await call('scan_folders', { paths: roots, profile: prof });
+  const res = await call('make_dupes_plan', { profile: prof });
+
+  S.plan = res;
+  S.deselected.clear();
+  S.duSizes.clear();
+  S.duScanned = true;
+  // Lõi chỉ giữ MỘT kết quả quét, nên kế hoạch của wizard giờ đã cũ. Banner sẵn có
+  // sẽ báo và cho quét lại bằng một nút.
+  markPlanStale();
+  renderDupes();
+  go('dupes');
+};
+
+function renderDupes() {
+  const dup = S.plan.dupReport;
+  const near = S.plan.nearReport;
+  const nothing = dup.totalExtras === 0 && near.totalExtras === 0;
+  $('#du-empty').classList.toggle('hidden', !nothing);
+  $('#du-result').classList.toggle('hidden', nothing);
+  if (nothing) return;
+
+  $('#du-chips').innerHTML = [
+    { b: fmtNum(dup.totalExtras), i: t('du.c.exact') },
+    { b: fmtNum(near.totalExtras), i: t('du.c.near') },
+    { b: fmtBytes(dup.totalWasted + near.totalWasted), i: t('du.c.wasted'), k: 'amber' },
+  ].map((c) => `<span class="pv-chip flat ${c.k || ''}"><b>${c.b}</b><i>${esc(c.i)}</i></span>`).join('');
+
+  $('#du-exact-card').classList.toggle('hidden', dup.totalExtras === 0);
+  $('#du-exact-count').textContent = fmtNum(dup.totalGroups);
+  S.duShown = 0;
+  $('#du-exact-list').innerHTML = '';
+  renderDupGroups();
+
+  $('#du-near-card').classList.toggle('hidden', near.totalExtras === 0);
+  $('#du-near-count').textContent = fmtNum(near.totalGroups);
+  $('#du-near-open').textContent = t('du.near.open', fmtNum(near.totalExtras));
+
+  duRecap();
+}
+
+function duMemberHtml(m, keeper) {
+  S.duSizes.set(m.id, m.size);   // nhớ dung lượng để tính lại khi người dùng bỏ tick
+  const off = S.deselected.has(m.id);
+  return `
+    <div class="dg-item ${keeper ? 'keep' : ''} ${off ? 'off' : ''}">
+      ${keeper
+    ? `<span class="dg-badge">${t('du.keep')}</span>`
+    : `<label class="dg-tick"><input type="checkbox" data-dup="${m.id}" ${off ? '' : 'checked'}
+           aria-label="${esc(t('du.moveIt'))}: ${esc(baseName(m.path))}"></label>`}
+      <span class="dg-name" title="${esc(m.path)}">${esc(baseName(m.path))}</span>
+      <span class="dg-path">${esc(tailPath(m.path, 3))}</span>
+    </div>`;
+}
+
+function renderDupGroups() {
+  const gs = S.plan.dupReport.groups;
+  const slice = gs.slice(S.duShown, S.duShown + DUP_PAGE);
+  $('#du-exact-list').insertAdjacentHTML('beforeend', slice.map((g, i) => `
+    <section class="dg">
+      <div class="dg-head">${t('du.group', fmtNum(S.duShown + i + 1), fmtBytes(g.size))}</div>
+      ${duMemberHtml(g.keeper, true)}
+      ${g.extras.map((e) => duMemberHtml(e, false)).join('')}
+    </section>`).join(''));
+  S.duShown += slice.length;
+  $('#du-exact-more').classList.toggle('hidden', S.duShown >= gs.length);
+  $('#du-exact-more').textContent = t('du.more');
+}
+
+$('#du-exact-more').onclick = () => renderDupGroups();
+
+/**
+ * Vẽ lại kết quả bằng chữ của ngôn ngữ hiện tại, giữ nguyên số nhóm người dùng đã
+ * mở ra. Các thẻ này do JS dựng nên `applyI18n` không với tới được.
+ */
+function redrawDupes() {
+  if (!S.duScanned || !S.plan) return;
+  const want = Math.max(S.duShown, DUP_PAGE);
+  renderDupes();
+  while (S.duShown < want && S.duShown < S.plan.dupReport.groups.length) renderDupGroups();
+}
+
+$('#du-exact-list').addEventListener('change', (e) => {
+  const cb = e.target.closest('input[data-dup]');
+  if (!cb) return;
+  const id = +cb.dataset.dup;
+  if (cb.checked) S.deselected.delete(id); else S.deselected.add(id);
+  cb.closest('.dg-item').classList.toggle('off', !cb.checked);
+  duRecap();
+});
+
+/** Câu tóm tắt cạnh nút làm — tính đúng theo những gì người dùng đã bỏ tick */
+function duRecap() {
+  if ($('#du-action').value === 'Report') {
+    $('#du-recap').textContent = t('du.recap.report');
+    $('#du-apply').disabled = true;
+    return;
+  }
+  const n = Math.max(0, S.plan.summary.duplicates - S.deselected.size);
+  const offBytes = [...S.deselected].reduce((a, id) => a + (S.duSizes.get(id) || 0), 0);
+  const bytes = Math.max(0, S.plan.summary.totalBytes - offBytes);
+  $('#du-recap').textContent = n ? t('du.recap', fmtNum(n), fmtBytes(bytes)) : t('du.recap.none');
+  $('#du-apply').disabled = n === 0;
+}
+
+// Đổi cách xử lý làm đổi luôn danh sách thao tác, nên phải lập lại kế hoạch
+$('#du-action').onchange = async () => {
+  if (!S.duScanned) return;
+  const keep = new Set(S.deselected);
+  const res = await call('make_dupes_plan', { profile: duProfile() });
+  S.plan = res;
+  S.deselected = keep;
+  renderDupes();
+};
+
+$('#du-near-open').onclick = () => $('#btn-near-review').click();
+
+$('#du-apply').onclick = async () => {
+  const pf = await invoke('run_preflight', { deselected: Array.from(S.deselected) }).catch(() => null);
+  S.skipIds = (pf && pf.skipIds) || [];
+  if (pf && !pf.ok) {
+    toast((pf.issues.find((i) => i.level === 'error') || {}).msg || t('run.failed'), 'err', 6000);
+    return;
+  }
+  $('#confirm-text').textContent = $('#du-recap').textContent;
+  $('#confirm-modal').classList.remove('hidden');
+  setTimeout(() => $('#confirm-go').focus(), 40);
+};
 
 // ═══════════════════════════════════════════════════════════ 6. Lịch sử
 

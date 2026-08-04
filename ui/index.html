@@ -60,6 +60,9 @@
       <button class="nav-item" data-go="design" disabled><b class="step">3</b><span data-i18n="nav.3">Chọn cách sắp xếp</span></button>
       <button class="nav-item" data-go="preview" disabled><b class="step">4</b><span data-i18n="nav.4">Kiểm tra rồi làm</span></button>
       <div class="nav-sep"></div>
+      <!-- Công cụ độc lập: tìm file trùng là một CÔNG VIỆC khác hẳn dọn thư mục,
+           người dùng không muốn đổi chỗ gì cả nên không nên bắt họ đi qua wizard. -->
+      <button class="nav-item plain" data-go="dupes"><svg><use href="#i-copy"/></svg><span data-i18n="nav.dupes">Tìm file &amp; ảnh trùng</span></button>
       <button class="nav-item plain" data-go="history"><svg><use href="#i-clock"/></svg><span data-i18n="nav.history">Việc đã làm</span></button>
       <button class="nav-item plain" data-go="settings"><svg><use href="#i-cog"/></svg><span data-i18n="nav.settings">Cài đặt</span></button>
     </nav>
@@ -492,6 +495,85 @@
           </div>
         </div>
         <div id="run-result"></div>
+      </div>
+    </section>
+
+    <!-- ─────────── Tìm file & ảnh trùng (công cụ độc lập) ─────────── -->
+    <section class="screen" id="s-dupes">
+      <div class="pad">
+        <header class="head">
+          <div>
+            <h1 data-i18n="du.title">Tìm file &amp; ảnh trùng nhau</h1>
+            <p class="muted" data-i18n="du.sub"></p>
+          </div>
+        </header>
+
+        <div class="drop" id="du-drop">
+          <div class="drop-icon"><svg><use href="#i-copy"/></svg></div>
+          <p class="drop-hint" data-i18n="du.pickHint"></p>
+          <button class="btn btn-primary btn-lg" id="du-pick"><svg><use href="#i-plus"/></svg><span data-i18n="home.pick">Chọn thư mục</span></button>
+        </div>
+
+        <div id="du-src" class="src-list"></div>
+
+        <div class="row-between mt20 hidden" id="du-actions">
+          <span class="muted sm" data-i18n="du.scanNote"></span>
+          <button class="btn btn-primary btn-lg" id="du-scan"><span data-i18n="du.scan">Bắt đầu tìm</span><svg><use href="#i-arrow"/></svg></button>
+        </div>
+
+        <div class="safety">
+          <div class="safety-head"><svg><use href="#i-shield"/></svg><b data-i18n="du.safe.title"></b></div>
+          <ul>
+            <li><b data-i18n="du.safe.1b"></b> <span data-i18n="du.safe.1"></span></li>
+            <li><b data-i18n="du.safe.2b"></b> <span data-i18n="du.safe.2"></span></li>
+          </ul>
+        </div>
+
+        <!-- ── Kết quả ── -->
+        <div class="hidden" id="du-result">
+          <div class="pv-chips" id="du-chips"></div>
+
+          <div class="card mt20" id="du-exact-card">
+            <div class="card-head">
+              <h3 data-i18n="du.exact">File trùng khít nhau</h3>
+              <span class="pill" id="du-exact-count"></span>
+            </div>
+            <div class="pad16">
+              <p class="muted sm" data-i18n="du.exact.note"></p>
+              <div id="du-exact-list" class="dg-list"></div>
+              <button class="btn btn-ghost w100 mt12 hidden" id="du-exact-more" data-i18n="du.more"></button>
+            </div>
+          </div>
+
+          <div class="card mt20" id="du-near-card">
+            <div class="card-head">
+              <h3 data-i18n="du.near">Ảnh trông gần giống nhau</h3>
+              <span class="pill" id="du-near-count"></span>
+            </div>
+            <div class="pad16">
+              <p class="muted sm" data-i18n="du.near.note"></p>
+              <button class="btn mt12" id="du-near-open"></button>
+            </div>
+          </div>
+
+          <div class="card mt20">
+            <div class="card-head"><h3 data-i18n="du.what">Làm gì với mấy bản thừa</h3></div>
+            <div class="pad16">
+              <select id="du-action">
+                <option value="Quarantine" data-i18n="de.dupes.a1"></option>
+                <option value="Recycle" data-i18n="de.dupes.a2"></option>
+                <option value="Report" data-i18n="de.dupes.a3"></option>
+              </select>
+              <p class="near-safe mt12"><svg><use href="#i-shield"/></svg><span data-i18n="du.near.never"></span></p>
+              <div class="row-between mt20">
+                <span class="muted sm" id="du-recap"></span>
+                <button class="btn btn-primary btn-lg" id="du-apply" data-i18n="du.apply">Dọn mấy bản thừa</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <p class="du-empty muted hidden" id="du-empty" data-i18n="du.none"></p>
       </div>
     </section>
 

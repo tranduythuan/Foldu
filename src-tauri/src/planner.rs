@@ -277,6 +277,147 @@ pub fn compute_dup_near(
     (dup_report, near_report)
 }
 
+/// Thao tac danh cho BAN THUA — anh gan giong hoac file trung khit. `None` nghia la
+/// file nay khong phai ban thua (hoac nguoi dung chon chi ghi bao cao).
+///
+/// Ca hai duong lap ke hoach — don thu muc va cong cu Tim trung lap — deu goi ham
+/// nay, de rang buoc an toan quan trong nhat chi ton tai o DUNG MOT CHO: anh gan
+/// giong LUON duoc don vao thu muc rieng, khong bao gio vao Thung rac du nguoi dung
+/// da dat the cho file trung khit. Vi day chi la "trong giong", may co the nham,
+/// ma file thi mat that.
+fn extra_op(
+    f: &FileEntry,
+    near_extra: &HashSet<u32>,
+    dup_extra: &HashSet<u32>,
+    profile: &Profile,
+    base: PathBuf,
+    taken: &mut HashSet<String>,
+    folders: &mut HashSet<String>,
+) -> Option<PlanOp> {
+    if near_extra.contains(&f.id) {
+        let dir = base.join(near_folder());
+        let (name, _) = unique_name(&dir, &f.name, taken);
+        folders.insert(dir.to_string_lossy().to_string());
+        let dest = dir.join(&name);
+        return Some(PlanOp {
+            id: f.id,
+            src: f.path.clone(),
+            final_name: name,
+            dest,
+            size: f.size,
+            action: OpAction::Quarantine,
+            reason: crate::i18n::t("msg.nearReason").into(),
+            renamed: false,
+            is_dir: f.is_dir,
+            selected: true,
+            near: true,
+        });
+    }
+
+    if dup_extra.contains(&f.id) && profile.duplicates.action != DupAction::Report {
+        let (action, dir) = match profile.duplicates.action {
+            DupAction::Recycle => (OpAction::Recycle, PathBuf::new()),
+            _ => (OpAction::Quarantine, base.join(dup_folder())),
+        };
+        let dest = if action == OpAction::Recycle {
+            PathBuf::new()
+        } else {
+            let (name, _) = unique_name(&dir, &f.name, taken);
+            folders.insert(dir.to_string_lossy().to_string());
+            dir.join(name)
+        };
+        return Some(PlanOp {
+            id: f.id,
+            src: f.path.clone(),
+            final_name: dest
+                .file_name()
+                .map(|s| s.to_string_lossy().to_string())
+                .unwrap_or_else(|| f.name.clone()),
+            dest,
+            size: f.size,
+            action,
+            reason: crate::i18n::t("msg.dupReason").into(),
+            renamed: false,
+            is_dir: f.is_dir,
+            selected: true,
+            near: false,
+        });
+    }
+
+    None
+}
+
+/// Ke hoach CHI dong toi ban thua: file trung khit va anh gan giong.
+///
+/// "Tim file & anh trung" la mot cong viec khac han "don thu muc". O day nguoi dung
+/// khong muon doi cho bat cu thu gi — ho chi muon biet cai gi dang chiem cho vo ich
+/// roi quyet giu ban nao. Vi vay moi file KHONG phai ban thua deu khong sinh thao
+/// tac nao, khac han `build_plan` la noi moi file deu duoc xep lai.
+pub fn build_dupes_plan(
+    files: &[FileEntry],
+    profile: &Profile,
+    roots: &[PathBuf],
+    on_progress: impl FnMut(&str, usize, usize),
+) -> Plan {
+    let start = std::time::Instant::now();
+    let (dup_report, near_report) = compute_dup_near(files, profile, on_progress);
+
+    let mut dup_extra: HashSet<u32> = HashSet::new();
+    for g in &dup_report.groups {
+        for e in &g.extras {
+            dup_extra.insert(e.id);
+        }
+    }
+    let mut near_extra: HashSet<u32> = HashSet::new();
+    for g in &near_report.groups {
+        for e in &g.extras {
+            near_extra.insert(e.id);
+        }
+    }
+
+    let mut taken: HashSet<String> = HashSet::new();
+    let mut ops: Vec<PlanOp> = Vec::new();
+    let mut folders: HashSet<String> = HashSet::new();
+
+    for f in files {
+        if f.is_dir {
+            continue;
+        }
+        let base = match &profile.destination {
+            Some(d) if !d.is_empty() => PathBuf::from(d),
+            _ => f.root.clone(),
+        };
+        if let Some(op) = extra_op(f, &near_extra, &dup_extra, profile, base, &mut taken, &mut folders) {
+            ops.push(op);
+        }
+    }
+
+    let summary = PlanSummary {
+        total: files.len(), // so file da soi, khong phai so thao tac
+        moves: 0,
+        renames: 0,
+        duplicates: ops.len(),
+        keeps: 0,
+        skips: 0,
+        new_folders: folders.len(),
+        total_bytes: ops.iter().map(|o| o.size).sum(),
+        dup_wasted: dup_report.total_wasted,
+    };
+
+    Plan {
+        ops,
+        summary,
+        folders: folders.into_iter().collect(),
+        dup_report,
+        near_report,
+        warnings: Vec::new(),
+        mode: Mode::Move,
+        roots: roots.to_vec(),
+        clean_empty_dirs: false, // khong lam xao tron cau truc thu muc
+        elapsed_ms: start.elapsed().as_millis() as u64,
+    }
+}
+
 pub fn build_plan(
     files: &[FileEntry],
     profile: &Profile,
@@ -433,60 +574,8 @@ pub fn build_plan_with_reports(
     let mut folders: HashSet<String> = HashSet::new();
 
     for f in files {
-        // Ban thua trong nhom trung lap
-        // Ảnh gần giống: LUÔN dồn vào một thư mục riêng để người dùng tự xem lại.
-        // Không bao giờ đưa vào Thùng rác dù người dùng đặt thế cho trùng lặp,
-        // vì đây chỉ là "trông giống", máy có thể nhầm còn file thì mất thật.
-        if near_extra.contains(&f.id) {
-            let dir = base_for(f).join(near_folder());
-            let (name, _) = unique_name(&dir, &f.name, &mut taken);
-            folders.insert(dir.to_string_lossy().to_string());
-            let dest = dir.join(&name);
-            ops.push(PlanOp {
-                id: f.id,
-                src: f.path.clone(),
-                final_name: name,
-                dest,
-                size: f.size,
-                action: OpAction::Quarantine,
-                reason: crate::i18n::t("msg.nearReason").into(),
-                renamed: false,
-                is_dir: f.is_dir,
-                selected: true,
-                near: true,
-            });
-            continue;
-        }
-
-        if dup_extra.contains(&f.id) && profile.duplicates.action != DupAction::Report {
-            let (action, dir) = match profile.duplicates.action {
-                DupAction::Recycle => (OpAction::Recycle, PathBuf::new()),
-                _ => (OpAction::Quarantine, base_for(f).join(dup_folder())),
-            };
-            let dest = if action == OpAction::Recycle {
-                PathBuf::new()
-            } else {
-                let (name, renamed) = unique_name(&dir, &f.name, &mut taken);
-                let _ = renamed;
-                folders.insert(dir.to_string_lossy().to_string());
-                dir.join(name)
-            };
-            ops.push(PlanOp {
-                id: f.id,
-                src: f.path.clone(),
-                final_name: dest
-                    .file_name()
-                    .map(|s| s.to_string_lossy().to_string())
-                    .unwrap_or_else(|| f.name.clone()),
-                dest,
-                size: f.size,
-                action,
-                reason: crate::i18n::t("msg.dupReason").into(),
-                renamed: false,
-                is_dir: f.is_dir,
-                selected: true,
-                near: false,
-            });
+        if let Some(op) = extra_op(f, &near_extra, &dup_extra, profile, base_for(f), &mut taken, &mut folders) {
+            ops.push(op);
             continue;
         }
 

@@ -275,22 +275,54 @@ async fn make_plan(app: AppHandle, profile: Profile) -> Result<PlanOutcome, Stri
             near_report,
         );
 
-        let outcome = PlanOutcome {
-            summary: plan.summary.clone(),
-            warnings: plan.warnings.clone(),
-            folders: plan.folders.iter().take(4000).cloned().collect(),
-            dup_report: dedup::DupReport {
-                groups: plan.dup_report.groups.iter().take(200).cloned().collect(),
-                ..plan.dup_report.clone()
-            },
-            near_report: phash::NearReport {
-                groups: plan.near_report.groups.iter().take(200).cloned().collect(),
-                ..plan.near_report.clone()
-            },
-            elapsed_ms: plan.elapsed_ms,
-            first_page: plan.ops.iter().take(300).cloned().collect(),
+        let outcome = plan_outcome(&plan);
+        STATE.lock().unwrap().plan = Some(plan);
+        emit(&app, "done", i18n::t("prog.planDone"), 1, 1);
+        Ok(outcome)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Ban rut gon cua ke hoach de gui sang giao dien — cat bot cho khoi nem hang tram
+/// nghin dong qua mot luc. Ke hoach day du van nam trong STATE.
+fn plan_outcome(plan: &Plan) -> PlanOutcome {
+    PlanOutcome {
+        summary: plan.summary.clone(),
+        warnings: plan.warnings.clone(),
+        folders: plan.folders.iter().take(4000).cloned().collect(),
+        dup_report: dedup::DupReport {
+            groups: plan.dup_report.groups.iter().take(200).cloned().collect(),
+            ..plan.dup_report.clone()
+        },
+        near_report: phash::NearReport {
+            groups: plan.near_report.groups.iter().take(200).cloned().collect(),
+            ..plan.near_report.clone()
+        },
+        elapsed_ms: plan.elapsed_ms,
+        first_page: plan.ops.iter().take(300).cloned().collect(),
+    }
+}
+
+/// Ke hoach cho cong cu "Tim file & anh trung": chi dong toi ban thua, khong xep lai
+/// bat cu thu gi. Dung chung toan bo may nhat ky + hoan tac voi viec don thu muc.
+#[tauri::command]
+async fn make_dupes_plan(app: AppHandle, profile: Profile) -> Result<PlanOutcome, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let (files, roots) = {
+            let s = STATE.lock().unwrap();
+            match &s.scan {
+                Some(sc) => (sc.files.clone(), s.roots.clone()),
+                None => return Err(i18n::t("msg.noScan").to_string()),
+            }
         };
 
+        let a = app.clone();
+        let plan = planner::build_dupes_plan(&files, &profile, &roots, |note, cur, total| {
+            emit(&a, "plan", note, cur, total)
+        });
+
+        let outcome = plan_outcome(&plan);
         STATE.lock().unwrap().plan = Some(plan);
         emit(&app, "done", i18n::t("prog.planDone"), 1, 1);
         Ok(outcome)
@@ -932,6 +964,7 @@ pub fn run() {
             list_drives,
             scan_folders,
             make_plan,
+            make_dupes_plan,
             plan_page,
             plan_ids,
             near_groups,

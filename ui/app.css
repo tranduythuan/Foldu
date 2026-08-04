@@ -698,6 +698,32 @@ button.pv-chip.on { border-color: var(--accent); background: var(--accent-soft);
 .ed-row label { font-size: 12.5px; color: var(--text-2); font-family: var(--mono); }
 .ed-row input { font-family: var(--mono); font-size: 11.5px; }
 
+/* ══════════════════════════════════ Công cụ Tìm file & ảnh trùng
+   File trùng khít thì so bằng ĐƯỜNG DẪN chứ không cần nhìn ảnh — chúng giống hệt
+   nhau, câu hỏi duy nhất là giữ bản nằm ở đâu. Nên phần này là danh sách chữ,
+   khác với lưới ảnh của phần ảnh gần giống. */
+.dg-list { display: flex; flex-direction: column; gap: 14px; margin-top: 12px; }
+.dg { border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; }
+.dg-head { padding: 8px 13px; background: var(--surface-2); font-size: 11.5px;
+  color: var(--muted); font-weight: 600; }
+.dg-item { display: flex; align-items: center; gap: 11px; padding: 9px 13px;
+  border-top: 1px solid var(--border); font-size: 12.5px; }
+.dg-item.keep { background: #34d3990a; }
+.dg-item.off { opacity: .42; }
+.dg-badge { width: 76px; flex: none; font-size: 10.5px; font-weight: 620; text-align: center;
+  padding: 2px 0; border-radius: 20px; background: var(--green); color: #04231a; }
+.dg-tick { width: 76px; flex: none; display: flex; justify-content: center; cursor: pointer; }
+.dg-tick input { appearance: none; width: 16px; height: 16px; border: 1.5px solid var(--border-2);
+  border-radius: 4px; background: var(--surface); cursor: pointer; }
+.dg-tick input:checked { background: var(--accent); border-color: var(--accent); }
+.dg-tick input:checked::after { content: ""; display: block; width: 4px; height: 8px;
+  border: 2px solid #fff; border-top: 0; border-left: 0; transform: rotate(42deg) translate(2.4px, .2px); }
+.dg-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--mono); font-size: 12px; }
+.dg-path { flex: 1.2; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+.du-empty { padding: 40px 0; text-align: center; font-size: 14.5px; }
+
 /* Giải thích vì sao không có cập nhật tự động — đây là lời hứa, không phải lời xin lỗi */
 .up-why { font-size: 13px; line-height: 1.65; color: var(--text-2); max-width: 78ch; }
 .up-why b { color: var(--text); font-weight: 600; }

@@ -501,6 +501,8 @@ pub fn presets() -> Vec<Preset> {
         p("diskfull", "diskfull", "drive", vec!["SIZE_TIER", "TYPE"], Mode::Move),
         p("media", "media", "film", vec!["TYPE", "MEDIA_RESOLUTION", "TIME_MODIFIED:%Y"], Mode::Move),
         p("archive", "archive", "archive", vec!["ACCESS_HEAT", "TIME_MODIFIED:%Y"], Mode::Move),
-        p("dupes", "dupes", "copy", vec![], Mode::ReportOnly),
+        // "Chi tim file bi luu trung" tung nam o day, nhung no khong phai mot kieu
+        // SAP XEP — no la mot cong viec khac han, gio co man hinh rieng "Tim file &
+        // anh trung". Bo khoi day cung lam man chon kieu nhe di mot the.
     ]
 }
