@@ -1,6 +1,6 @@
 {
   "name": "foldu",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Foldu - sap xep va don file tu dong, an toan, hoan tac duoc",
   "private": true,
   "scripts": {
