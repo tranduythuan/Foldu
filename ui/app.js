@@ -30,6 +30,8 @@ const S = {
   recoPreset: null,       // kiểu được gợi ý theo kết quả phân tích
   showAllPresets: false,
   listOpen: false,        // danh sách chi tiết ở bước 4 mặc định gấp lại
+  nearLoaded: [],         // các nhóm ảnh gần giống đã nạp (giữ để vẽ lại khi đổi ngôn ngữ)
+  nearTotal: 0,
   lastSession: null,
 };
 
@@ -185,6 +187,9 @@ async function applyLang(code) {
   readScope();
   syncAnFold();
   syncListToggle();
+  syncNearButton();
+  // Các thẻ ảnh do JS dựng nên applyI18n không với tới — phải vẽ lại bằng chữ mới
+  if (!$('#near-modal').classList.contains('hidden')) renderNearList();
   if (S.analytics) renderAnalytics();
   if (S.plan) refreshPlan();
 
@@ -1113,6 +1118,7 @@ function renderSummary() {
   });
 
   syncListToggle();
+  syncNearButton();
 }
 
 function syncListToggle() {
@@ -1143,6 +1149,128 @@ function openList(open) {
 }
 
 $('#btn-list-toggle').onclick = () => openList(!S.listOpen);
+
+/* ─────────────────────────────── Xem ảnh gần giống bằng mắt
+ *
+ * Đây là phỏng đoán, không phải trùng khít. Trước đây phần mềm gom ảnh vào một
+ * thư mục rồi bảo "tự xem lại đi" — người dùng chẳng có cách nào biết tấm nào bị
+ * coi là trùng với tấm nào, tức là buộc phải tin một con số họ không thấy.
+ * Ảnh do lõi Rust đọc và thu nhỏ, không ghi ra đĩa, không ra khỏi máy.
+ */
+const NEAR_PAGE = 12;
+
+function nearAvailable() {
+  const n = S.plan && S.plan.nearReport;
+  return !!(n && n.totalExtras > 0 && !n.skippedTooMany);
+}
+
+function syncNearButton() {
+  const b = $('#btn-near-review');
+  const ok = nearAvailable();
+  b.classList.toggle('hidden', !ok);
+  if (ok) b.textContent = t('near.open', fmtNum(S.plan.nearReport.totalExtras));
+}
+
+function nearPhotoHtml(p, keeper) {
+  const off = S.deselected.has(p.id);
+  const img = p.thumb
+    ? `<img src="${esc(p.thumb)}" alt="">`
+    : `<span class="np-none">${t('near.noThumb')}</span>`;
+  return `
+    <figure class="np ${keeper ? 'keeper' : ''} ${off ? 'off' : ''}">
+      <div class="np-img">${img}</div>
+      <figcaption>
+        <b title="${esc(p.path)}">${esc(p.name)}</b>
+        <span>${p.width}×${p.height} · ${fmtBytes(p.size)}</span>
+      </figcaption>
+      ${keeper
+    ? `<span class="np-badge">${t('near.keep')}</span>`
+    : `<label class="np-tick"><input type="checkbox" data-near="${p.id}" ${off ? '' : 'checked'}
+           aria-label="${esc(t('near.move'))}: ${esc(p.name)}"><span>${t('near.move')}</span></label>`}
+    </figure>`;
+}
+
+function nearGroupHtml(g, n) {
+  return `
+    <section class="near-group">
+      <div class="ng-head">
+        <b>${t('near.group', n)}</b>
+        <span class="muted sm">${t('near.wasted', fmtBytes(g.wasted))}</span>
+        <span class="ng-dist" title="${esc(t('near.dist.tip'))}">${t('near.dist', g.maxDistance)}</span>
+      </div>
+      <div class="ng-row">
+        ${nearPhotoHtml(g.keeper, true)}
+        ${g.extras.map((e) => nearPhotoHtml(e, false)).join('')}
+      </div>
+    </section>`;
+}
+
+/**
+ * Vẽ lại toàn bộ danh sách từ dữ liệu đã nạp. Giữ lại dữ liệu thay vì nối thẳng
+ * chuỗi HTML để đổi ngôn ngữ (hoặc bỏ tick) còn vẽ lại được mà KHÔNG phải giải mã
+ * ảnh lần nữa — giải mã vài trăm tấm là việc nặng nhất ở đây.
+ */
+function renderNearList() {
+  const box = $('#near-list');
+  if (!S.nearLoaded.length) {
+    box.innerHTML = `<p class="near-empty muted">${t('near.none')}</p>`;
+  } else {
+    box.innerHTML = S.nearLoaded.map((g, i) => nearGroupHtml(g, i + 1)).join('');
+  }
+  $('#near-count').textContent = t('near.count', fmtNum(S.nearLoaded.length), fmtNum(S.nearTotal));
+  $('#near-more').classList.toggle('hidden', S.nearLoaded.length >= S.nearTotal);
+}
+
+async function loadNearPage() {
+  const more = $('#near-more');
+  more.disabled = true;
+  let res;
+  try {
+    res = await invoke('near_groups', { offset: S.nearLoaded.length, limit: NEAR_PAGE });
+  } catch (e) {
+    toast(typeof e === 'string' ? e : String(e), 'err');
+    more.disabled = false;
+    return;
+  }
+  S.nearLoaded.push(...res.groups);
+  S.nearTotal = res.total;
+  renderNearList();
+  more.disabled = false;
+}
+
+$('#btn-near-review').onclick = async () => {
+  S.nearLoaded = [];
+  S.nearTotal = 0;
+  $('#near-list').innerHTML = '';
+  $('#near-modal').classList.remove('hidden');
+  await loadNearPage();
+  setTimeout(() => $('#near-close').focus(), 40);
+};
+$('#near-more').onclick = () => loadNearPage();
+
+const closeNear = () => $('#near-modal').classList.add('hidden');
+$('#near-close').onclick = closeNear;
+$('#near-modal').onclick = (e) => { if (e.target.id === 'near-modal') closeNear(); };
+
+// Phòng lúc có người ngồi cạnh hoặc đang chiếu màn hình
+$('#near-blur').onclick = () => {
+  const b = $('#near-blur');
+  const on = b.getAttribute('aria-pressed') !== 'true';
+  b.setAttribute('aria-pressed', String(on));
+  b.textContent = t(on ? 'near.show' : 'near.hide');
+  $('#near-list').classList.toggle('blurred', on);
+};
+
+// Uỷ quyền sự kiện: các nhóm được nạp dần nên không gắn tay từng ô tick
+$('#near-list').addEventListener('change', (e) => {
+  const cb = e.target.closest('input[data-near]');
+  if (!cb) return;
+  const id = +cb.dataset.near;
+  if (cb.checked) S.deselected.delete(id); else S.deselected.add(id);
+  cb.closest('.np').classList.toggle('off', !cb.checked);
+  renderSummary();
+  runPreflight();
+});
 
 /**
  * Bỏ tick cả nhóm đang lọc. Trước đây bộ lọc chỉ để nhìn: muốn để yên vài trăm
@@ -1557,6 +1685,7 @@ $('#btn-save-settings').onclick = async () => {
     if (e.key === 'Escape') {
       $('#crit-modal').classList.add('hidden');
       $('#confirm-modal').classList.add('hidden');
+      $('#near-modal').classList.add('hidden');
     }
     if (e.ctrlKey && e.key === 'o') { e.preventDefault(); $('#btn-pick').click(); }
   });

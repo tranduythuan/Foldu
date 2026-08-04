@@ -15,6 +15,7 @@ pub mod planner;
 pub mod rename;
 pub mod safety;
 pub mod scanner;
+pub mod thumb;
 pub mod util;
 
 use analytics::Analytics;
@@ -353,6 +354,94 @@ fn plan_page(offset: usize, limit: usize, filter: String, search: String) -> Pla
             .cloned()
             .collect(),
     }
+}
+
+// ─────────────────────────────────────────── Xem anh gan giong bang mat
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NearPhoto {
+    id: u32,
+    name: String,
+    path: String,
+    size: u64,
+    width: u32,
+    height: u32,
+    /// `None` khi anh khong doc duoc — giao dien hien o trong, khong bao loi
+    thumb: Option<String>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NearGroupView {
+    keeper: NearPhoto,
+    extras: Vec<NearPhoto>,
+    wasted: u64,
+    max_distance: u32,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NearGroupsPage {
+    groups: Vec<NearGroupView>,
+    total: usize,
+}
+
+fn near_photo(m: &phash::NearMember) -> NearPhoto {
+    NearPhoto {
+        id: m.id,
+        name: m
+            .path
+            .file_name()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_default(),
+        path: m.path.to_string_lossy().into_owned(),
+        size: m.size,
+        width: m.width,
+        height: m.height,
+        thumb: thumb::data_uri(&m.path),
+    }
+}
+
+/// Tung trang nhom anh gan giong, kem anh thu nho de nguoi dung tu nhin va tu quyet.
+/// Anh chi nam trong bo nho, khong ghi ra dia, khong di ra ngoai may.
+#[tauri::command]
+async fn near_groups(offset: usize, limit: usize) -> Result<NearGroupsPage, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        // Sao ra roi THA KHOA truoc khi giai ma anh: giai ma la viec nang, giu khoa
+        // suot qua trinh se chan moi lenh khac.
+        let (slice, total) = {
+            let s = STATE.lock().unwrap();
+            let plan = s
+                .plan
+                .as_ref()
+                .ok_or_else(|| i18n::t("msg.noPlan").to_string())?;
+            let all = &plan.near_report.groups;
+            (
+                all.iter()
+                    .skip(offset)
+                    .take(limit.clamp(1, 60))
+                    .cloned()
+                    .collect::<Vec<_>>(),
+                all.len(),
+            )
+        };
+
+        use rayon::prelude::*;
+        let groups = slice
+            .par_iter()
+            .map(|g| NearGroupView {
+                keeper: near_photo(&g.keeper),
+                extras: g.extras.iter().map(near_photo).collect(),
+                wasted: g.wasted,
+                max_distance: g.max_distance,
+            })
+            .collect();
+
+        Ok(NearGroupsPage { groups, total })
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Ma so cua MOI thao tac khop bo loc, de giao dien bo tick ca nhom trong mot lan.
@@ -809,6 +898,7 @@ pub fn run() {
             make_plan,
             plan_page,
             plan_ids,
+            near_groups,
             run_preflight,
             apply_plan,
             cancel_run,

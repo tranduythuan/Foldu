@@ -444,6 +444,7 @@
           <div class="pv-chips" id="pv-chips"></div>
           <div class="row mt12">
             <button class="btn btn-ghost" id="btn-list-toggle" aria-expanded="false"></button>
+            <button class="btn btn-ghost hidden" id="btn-near-review"></button>
             <span class="muted sm" data-i18n="pv.hero.hint"></span>
           </div>
         </div>
@@ -583,6 +584,30 @@
       Đổi lại bất cứ lúc nào bằng nút cờ ở góc dưới bên trái.<br>
       You can change this any time with the flag button at the bottom left.
     </p>
+  </div>
+</div>
+
+<!-- Xem ảnh gần giống bằng mắt. Ảnh do lõi Rust đọc và thu nhỏ rồi đưa sang dạng
+     dữ liệu nhúng, nên giao diện không cần quyền đọc ổ đĩa. Không ghi ảnh ra đĩa,
+     không đưa vào báo cáo xuất ra. -->
+<div class="modal hidden" id="near-modal">
+  <div class="modal-box wide" role="dialog" aria-modal="true" aria-labelledby="near-title">
+    <header>
+      <h2 id="near-title" data-i18n="near.title">Ảnh nào gần giống ảnh nào</h2>
+      <div class="row">
+        <button class="btn btn-ghost" id="near-blur" aria-pressed="false" data-i18n="near.hide">Ẩn ảnh</button>
+        <button class="icon-btn" id="near-close"><svg><use href="#i-x"/></svg></button>
+      </div>
+    </header>
+    <div class="near-intro">
+      <p data-i18n="near.note"></p>
+      <p class="near-privacy"><svg><use href="#i-shield"/></svg><span data-i18n="near.privacy"></span></p>
+    </div>
+    <div class="near-list" id="near-list"></div>
+    <footer class="modal-foot near-foot">
+      <span class="muted sm" id="near-count"></span>
+      <button class="btn btn-ghost hidden" id="near-more" data-i18n="near.more">Xem thêm nhóm nữa</button>
+    </footer>
   </div>
 </div>
 

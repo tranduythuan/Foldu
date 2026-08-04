@@ -809,6 +809,59 @@ button.pv-chip.on { border-color: var(--accent); background: var(--accent-soft);
 .lang-note { margin-top: 20px; font-size: 12px; color: var(--muted); line-height: 1.65;
   text-align: center; }
 
+/* ── Xem ảnh gần giống bằng mắt.
+   Ảnh nằm cạnh nhau trong cùng một hàng thì mắt tự so được — đó là toàn bộ mục
+   đích: biến "phải tin một con số" thành "nhìn là biết". */
+.modal-box.wide { width: min(1000px, 94vw); max-height: 86vh; }
+
+.near-intro { padding: 16px 20px 12px; border-bottom: 1px solid var(--border); }
+.near-intro p { font-size: 13px; line-height: 1.6; color: var(--text-2); }
+.near-privacy { display: flex; gap: 8px; align-items: flex-start; margin-top: 10px;
+  padding: 9px 11px; border-radius: var(--r-sm);
+  background: #34d3990e; border: 1px solid #34d39930; font-size: 12px; }
+.near-privacy svg { width: 15px; height: 15px; color: var(--green); flex: none; margin-top: 1px; }
+
+.near-list { overflow-y: auto; padding: 6px 20px 16px; }
+.near-empty { padding: 40px 0; text-align: center; }
+/* Ẩn ảnh: phòng lúc có người ngồi cạnh hoặc đang chiếu màn hình */
+.near-list.blurred .np-img img { filter: blur(14px); }
+
+.near-group { padding: 16px 0; border-bottom: 1px solid var(--border); }
+.near-group:last-child { border-bottom: 0; }
+.ng-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 11px; }
+.ng-head b { font-size: 13px; font-weight: 620; }
+.ng-dist { margin-left: auto; font-size: 11px; font-family: var(--mono);
+  color: var(--muted); border-bottom: 1px dotted var(--border-2); cursor: help; }
+.ng-row { display: flex; flex-wrap: wrap; gap: 12px; }
+
+.np { width: 168px; border: 1px solid var(--border); border-radius: var(--r);
+  background: var(--surface); padding: 9px; transition: opacity .14s var(--ease); }
+.np.keeper { border-color: var(--green); background: #34d3990a; }
+.np.off { opacity: .42; }
+.np-img { height: 120px; border-radius: var(--r-sm); overflow: hidden; background: var(--surface-2);
+  display: grid; place-items: center; }
+/* Kích thước phải xác định chứ không phụ thuộc ảnh đã tải hay chưa: nếu để
+   max-width thì ảnh chưa tải có hộp 0×0, mà hộp 0×0 thì trình duyệt không coi là
+   đã lọt khung nhìn nên không tải — kẹt vòng, ảnh không bao giờ hiện ra.
+   object-fit giữ đúng tỷ lệ, phần thừa để trống hai bên. */
+.np-img img { width: 100%; height: 100%; display: block; object-fit: contain; }
+.np-none { font-size: 11px; color: var(--muted); text-align: center; padding: 0 8px; }
+.np figcaption { margin-top: 8px; }
+.np figcaption b { display: block; font-size: 11.5px; font-weight: 560;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.np figcaption span { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+.np-badge { display: inline-block; margin-top: 8px; padding: 2px 8px; border-radius: 20px;
+  font-size: 10.5px; font-weight: 620; background: var(--green); color: #04231a; }
+.np-tick { display: flex; align-items: flex-start; gap: 7px; margin-top: 8px;
+  font-size: 11.5px; color: var(--text-2); cursor: pointer; }
+.np-tick input { appearance: none; width: 15px; height: 15px; flex: none; margin-top: 1px;
+  border: 1.5px solid var(--border-2); border-radius: 4px; background: var(--surface); cursor: pointer; }
+.np-tick input:checked { background: var(--accent); border-color: var(--accent); }
+.np-tick input:checked::after { content: ""; display: block; width: 4px; height: 7.5px;
+  border: 2px solid #fff; border-top: 0; border-left: 0; transform: rotate(42deg) translate(2.2px, .2px); }
+
+.near-foot { justify-content: space-between; align-items: center; }
+
 /* Hộp xác nhận trước khi làm thật */
 .modal-box.narrow { width: min(460px, 92vw); }
 .confirm-body { padding: 20px 22px 4px; }
