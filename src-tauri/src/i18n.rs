@@ -241,9 +241,8 @@ fn pair(key: &str) -> (&'static str, &'static str) {
     "pre.archive.name"   => ("Cất file lâu không dùng", "Archive what you never open"),
     "pre.archive.desc"   => ("Tách file lâu rồi bạn chưa mở ra một chỗ riêng, rồi chia theo năm.",
                              "Moves files you have not opened in a long time aside, then splits by year."),
-    "pre.dupes.name"     => ("Chỉ tìm file bị lưu trùng", "Only find duplicate files"),
-    "pre.dupes.desc"     => ("Không chuyển file nào. Chỉ tìm và cho bạn xem file nào đang bị lưu nhiều lần.",
-                             "Moves nothing. Just finds and shows you which files are stored more than once."),
+    // "pre.dupes.*" da bo: viec tim file trung khong con la mot kieu SAP XEP,
+    // no co man hinh rieng "Tim file & anh trung".
 
     // ═══════════════════════════ DANH MỤC CÁCH CHIA ═════════════════════════
 
