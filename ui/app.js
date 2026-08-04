@@ -188,6 +188,7 @@ async function applyLang(code) {
   syncAnFold();
   syncListToggle();
   syncNearButton();
+  syncVersion();
   // Các thẻ ảnh do JS dựng nên applyI18n không với tới — phải vẽ lại bằng chữ mới
   if (!$('#near-modal').classList.contains('hidden')) renderNearList();
   if (S.analytics) renderAnalytics();
@@ -199,6 +200,21 @@ async function applyLang(code) {
 }
 
 $('#lang-toggle').onclick = () => applyLang(currentLang() === 'vi' ? 'en' : 'vi');
+
+/**
+ * Số hiệu phiên bản lấy từ lõi chứ không ghi cứng trong giao diện — trước đây chỗ
+ * này ghi tay "Bản 2.0" trong khi bản phát hành thật là 1.1.0. Sai lệch đó vô hại
+ * cho tới khi ta bảo người dùng tự so phiên bản với trang tải về.
+ */
+function syncVersion() {
+  const v = S.appVersion || '';
+  $('#ver-nav').textContent = v ? t('nav.version', v) : '';
+  $('#ver-pill').textContent = v ? 'v' + v : '';
+}
+
+// Foldu cố ý không tự kiểm tra bản mới. Nút này chỉ nhờ trình duyệt của người dùng
+// mở trang phát hành; phần mềm không hề gọi mạng.
+$('#btn-releases').onclick = () => invoke('open_releases').catch((e) => toast(String(e), 'err'));
 
 /**
  * Lần mở đầu tiên thì hỏi ngôn ngữ. Hộp này cố tình viết song ngữ vì lúc đó
@@ -1646,16 +1662,18 @@ $('#btn-save-settings').onclick = async () => {
 // ═════════════════════════════════════════════════════════════════ Khởi động
 
 (async function init() {
-  const [settings, presets, catalog, profile] = await Promise.all([
+  const [settings, presets, catalog, profile, version] = await Promise.all([
     invoke('get_settings'),
     invoke('get_presets'),
     invoke('get_catalog'),
     invoke('default_profile'),
+    invoke('app_version').catch(() => ''),
   ]);
   S.settings = settings;
   S.presets = presets;
   S.catalog = catalog;
   S.profile = profile;
+  S.appVersion = version;
 
   document.documentElement.dataset.theme = settings.theme === 'light' ? 'light' : 'dark';
 
@@ -1678,6 +1696,7 @@ $('#btn-save-settings').onclick = async () => {
 
   syncAnFold();
   syncListToggle();
+  syncVersion();
 
   document.addEventListener('keydown', (e) => {
     // Esc phải thoát được MỌI hộp thoại, không riêng hộp chọn tiêu chí. Riêng hộp

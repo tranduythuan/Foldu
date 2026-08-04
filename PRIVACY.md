@@ -129,7 +129,7 @@ Ngược lại, có hai thứ tôi cố tình chặn:
 - ❌ Không có tài khoản, không đăng nhập, không kích hoạt
 - ❌ Không thu thập thống kê sử dụng (telemetry)
 - ❌ Không gửi báo cáo lỗi tự động
-- ❌ Không tự kiểm tra cập nhật (muốn bản mới thì bạn tự vào trang Releases tải)
+- ❌ Không tự kiểm tra cập nhật, không tự cập nhật ([nói rõ ở mục dưới](#vì-sao-không-có-cập-nhật-tự-động))
 - ❌ Không quảng cáo, không bản Pro, không mời nâng cấp
 - ❌ Không đọc file ngoài thư mục bạn chọn
 - ❌ Không cần quyền quản trị (Administrator)
@@ -147,6 +147,25 @@ Ngược lại, có hai thứ tôi cố tình chặn:
 3. **Hộp thoại chọn thư mục** — để bạn trỏ vào thư mục cần dọn
 
 Ngoài ra, có một chi tiết kỹ thuật đáng nói cho người kỹ tính: Foldu **không bật giao thức `asset:`** của Tauri (giao thức cho phép lớp giao diện đọc thẳng file từ ổ đĩa). Thư mục `capabilities/` không tồn tại trong dự án — bạn kiểm tra được. Ảnh thu nhỏ được lõi xử lý rồi truyền sang giao diện dưới dạng dữ liệu nhúng, nên lớp giao diện không hề có quyền đọc ổ đĩa.
+
+---
+
+## Vì sao không có cập nhật tự động
+
+Gần như phần mềm nào cũng tự hỏi máy chủ *"đã có bản mới chưa?"* mỗi lần khởi động. Foldu **cố ý không làm việc đó** — và đây là chủ ý, không phải làm chưa tới.
+
+Lý do: một lệnh kiểm tra cập nhật tuy chỉ gửi đi địa chỉ IP và thời điểm (không hề gửi tên file hay ảnh của bạn), nhưng nó **phá mất thứ giá trị nhất của tài liệu này: khả năng tự kiểm chứng.**
+
+Hiện tại lời cam kết có dạng *"không tồn tại thư viện mạng nào trong phần mềm, nên nó không thể gửi"* — bạn mở `Cargo.toml` ra là kiểm được trong 5 giây. Nếu thêm chức năng kiểm cập nhật, câu đó phải đổi thành *"nó chỉ gọi đúng một địa chỉ này thôi"* — muốn kiểm chứng bạn phải đọc hiểu cả luồng mã. Gánh nặng chuyển từ **tự kiểm tra được** sang **phải tin tôi**. Đổi như vậy không đáng.
+
+**Vậy làm sao biết có bản mới?** Trong phần mềm, vào **Cài đặt → Cập nhật phần mềm**:
+
+- Ở đó ghi sẵn **số hiệu bản bạn đang dùng**
+- Bấm **"Mở trang tải bản mới"** — nút này mở **trình duyệt của bạn** tới trang phát hành, so số hiệu là biết ngay
+
+Nút đó không hề là một lệnh gọi mạng của Foldu. Nó chỉ khởi chạy tiến trình mở trình duyệt — đúng cùng một cơ chế mà nút "Mở xem thư mục" dùng để mở Explorer. Trình duyệt là thứ bạn vốn đã tin và tự kiểm soát; Foldu vẫn không gửi đi một byte nào. Mã nguồn: hàm `open_releases` trong [`src-tauri/src/lib.rs`](src-tauri/src/lib.rs), địa chỉ được ghi cứng trong lõi nên giao diện không thể bảo nó mở thứ gì khác.
+
+Muốn được báo tự động thì bấm **Watch → Releases only** trên [trang GitHub](https://github.com/tranduythuan/Foldu) — GitHub sẽ gửi email cho bạn, còn phần mềm trên máy vẫn im lặng tuyệt đối.
 
 ---
 

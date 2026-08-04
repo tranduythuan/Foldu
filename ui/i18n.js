@@ -16,7 +16,7 @@ const DICT = {
     'nav.settings': 'Cài đặt',
     'nav.theme': 'Đổi nền sáng / nền tối',
     'nav.lang': 'Chuyển sang tiếng Anh',
-    'nav.version': 'Bản 2.0',
+    'nav.version': 'Bản {0}',
 
     // ─────────────────────────────────────────────── Bước 1
     'home.title': 'Chọn thư mục cần dọn',
@@ -383,6 +383,12 @@ const DICT = {
     'se.ignore': 'File không bao giờ đụng tới',
     'se.ignore.sub': 'Mỗi dòng một mẫu',
 
+    // Cập nhật: cố ý làm thủ công, không tự động
+    'se.update': 'Cập nhật phần mềm',
+    'se.update.why': 'Foldu <b>không tự kiểm tra bản mới</b> và <b>không tự cập nhật</b>. Đây là chủ ý, không phải thiếu sót: phần mềm này cam kết không kết nối mạng, nên nó không âm thầm liên lạc với bất cứ máy chủ nào — kể cả để hỏi xem đã có bản mới hay chưa. Việc kiểm tra do bạn chủ động làm, khi nào bạn muốn.',
+    'se.update.open': 'Mở trang tải bản mới',
+    'se.update.note': 'Nút này chỉ mở trình duyệt của bạn tới trang phát hành trên GitHub. Bản thân Foldu vẫn không gửi đi thứ gì.',
+
     'resume.text': 'Lần dọn lúc {0} chưa chạy xong, có thể máy đã tắt giữa chừng. Cả {1} file đã chuyển vẫn trả về chỗ cũ được.',
   },
 
@@ -397,7 +403,7 @@ const DICT = {
     'nav.settings': 'Settings',
     'nav.theme': 'Switch between light and dark',
     'nav.lang': 'Chuyển sang tiếng Việt',
-    'nav.version': 'Version 2.0',
+    'nav.version': 'Version {0}',
 
     'home.title': 'Pick the folder you want tidied',
     'home.sub': 'Drag a folder into the box below, or use the button.',
@@ -753,6 +759,11 @@ const DICT = {
     'se.noise.sub': 'Such as v1, final, IMG, Copy',
     'se.ignore': 'Files never to touch',
     'se.ignore.sub': 'One pattern per line',
+
+    'se.update': 'Updates',
+    'se.update.why': 'Foldu <b>does not check for new versions</b> and <b>does not update itself</b>. That is deliberate, not an omission: this app promises never to use the network, so it contacts no server behind your back — not even to ask whether a newer version exists. Checking is something you do yourself, whenever you want.',
+    'se.update.open': 'Open the downloads page',
+    'se.update.note': 'This button only opens the GitHub releases page in your own browser. Foldu itself still sends nothing.',
 
     'resume.text': 'The run at {0} never finished, the computer may have shut off partway. All {1} files that moved can still go back.',
   },

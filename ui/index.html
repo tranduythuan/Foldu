@@ -72,7 +72,8 @@
       <button class="icon-btn" id="theme-toggle" data-i18n-title="nav.theme">
         <svg class="ic-dark"><use href="#i-sun"/></svg><svg class="ic-light"><use href="#i-moon"/></svg>
       </button>
-      <span class="ver" data-i18n="nav.version">Bản 2.0</span>
+      <!-- Số hiệu do lõi cấp lúc khởi động, không ghi cứng để khỏi lệch bản phát hành -->
+      <span class="ver" id="ver-nav"></span>
     </div>
   </aside>
 
@@ -507,6 +508,19 @@
       <div class="pad">
         <header class="head"><div><h1 data-i18n="se.title">Cài đặt</h1><p class="muted" data-i18n="se.sub"></p></div>
           <button class="btn btn-primary" id="btn-save-settings" data-i18n="se.save">Lưu lại</button></header>
+
+        <!-- Cập nhật thủ công. Foldu cố ý không tự kiểm tra bản mới: nút này chỉ
+             mở trình duyệt của người dùng, phần mềm không hề gọi mạng. -->
+        <div class="card mt20">
+          <div class="card-head"><h3 data-i18n="se.update">Cập nhật phần mềm</h3><span class="pill" id="ver-pill"></span></div>
+          <div class="pad16">
+            <p class="up-why" data-i18n-html="se.update.why"></p>
+            <div class="row mt12">
+              <button class="btn" id="btn-releases"><span data-i18n="se.update.open">Mở trang tải bản mới</span><svg><use href="#i-arrow"/></svg></button>
+              <span class="muted sm" data-i18n="se.update.note"></span>
+            </div>
+          </div>
+        </div>
 
         <div class="card mt20">
           <div class="card-head"><h3 data-i18n="se.groups"></h3><span class="muted sm" data-i18n="se.groups.sub"></span></div>

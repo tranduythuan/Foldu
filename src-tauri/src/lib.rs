@@ -684,6 +684,42 @@ fn default_profile() -> Profile {
 
 // -------------------------------------------------------------------- Tien ich
 
+/// Trang phat hanh. Ghi cung trong loi, va CO Y khong lam mot lenh "mo URL bat ky":
+/// mot lenh nhu vay se cho lop giao dien mo duoc bat cu thu gi tren may.
+const RELEASES_URL: &str = "https://github.com/tranduythuan/Foldu/releases/latest";
+
+/// Phien ban that, lay tu Cargo.toml luc bien dich nen khong bao gio lech voi ban phat hanh.
+#[tauri::command]
+fn app_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
+/// Mo trang phat hanh bang TRINH DUYET cua nguoi dung.
+///
+/// Foldu co y KHONG tu kiem tra ban moi va KHONG tu cap nhat: giu duoc loi hua
+/// "phan mem khong ket noi mang" quan trong hon su tien loi do. Lenh nay khong goi
+/// mang — no chi khoi chay tien trinh giong het `reveal` mo Explorer, roi trinh
+/// duyet (thu nguoi dung von da tin va tu kiem soat) lam phan con lai.
+#[tauri::command]
+fn open_releases() -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        // explorer mo trinh duyet mac dinh ma khong chop cua so dong lenh
+        std::process::Command::new("explorer")
+            .arg(RELEASES_URL)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(not(windows))]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(RELEASES_URL)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 #[tauri::command]
 fn reveal(path: String) -> Result<(), String> {
     let p = PathBuf::from(&path);
@@ -899,6 +935,8 @@ pub fn run() {
             plan_page,
             plan_ids,
             near_groups,
+            app_version,
+            open_releases,
             run_preflight,
             apply_plan,
             cancel_run,

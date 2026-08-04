@@ -129,7 +129,7 @@ Two things I deliberately prevented:
 - ❌ No account, no sign-in, no activation
 - ❌ No usage telemetry
 - ❌ No automatic crash reporting
-- ❌ No update checks (to get a new version you visit the Releases page yourself)
+- ❌ No update checks, no self-updating ([explained below](#why-there-is-no-automatic-updating))
 - ❌ No ads, no Pro tier, no upgrade prompts
 - ❌ Never reads files outside the folder you picked
 - ❌ Never needs Administrator rights
@@ -147,6 +147,25 @@ Exactly three, all the minimum for the job:
 3. **The folder picker dialog** — so you can point at a folder
 
 One technical detail worth stating for careful readers: Foldu **does not enable Tauri's `asset:` protocol** (the protocol that lets the UI layer read files straight off disk). There is no `capabilities/` directory in the project — you can check. Thumbnails are produced by the core and handed to the UI as embedded data, so the UI layer has no disk-read permission at all.
+
+---
+
+## Why there is no automatic updating
+
+Almost every app quietly asks a server *"is there a newer version?"* on startup. Foldu **deliberately does not** — this is a decision, not an unfinished feature.
+
+The reason: an update check sends only your IP address and the time of day (never file names or photos), but it destroys the most valuable thing in this document — **your ability to verify the claim yourself.**
+
+Right now the promise reads *"no networking library exists in this program, so it cannot send anything"* — you can confirm that by opening `Cargo.toml` in five seconds. Add an update check and it has to become *"it only contacts this one address"* — which you can only confirm by reading and understanding the code paths. The burden shifts from **you can check** to **you have to trust me**. That trade is not worth making.
+
+**So how do you find out about new versions?** In the app, go to **Settings → Updates**:
+
+- It shows **the version you are running**
+- Click **"Open the downloads page"** — this opens **your browser** at the releases page, so you can compare at a glance
+
+That button is not a network call by Foldu. It only launches your browser process — the same mechanism the "Open the folder" button uses to launch Explorer. Your browser is software you already trust and control; Foldu still sends nothing. Source: the `open_releases` function in [`src-tauri/src/lib.rs`](src-tauri/src/lib.rs), with the address hardcoded in the core so the UI layer cannot make it open anything else.
+
+If you want to be notified automatically, press **Watch → Releases only** on the [GitHub page](https://github.com/tranduythuan/Foldu) — GitHub emails you, while the app on your machine stays completely silent.
 
 ---
 

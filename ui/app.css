@@ -698,6 +698,10 @@ button.pv-chip.on { border-color: var(--accent); background: var(--accent-soft);
 .ed-row label { font-size: 12.5px; color: var(--text-2); font-family: var(--mono); }
 .ed-row input { font-family: var(--mono); font-size: 11.5px; }
 
+/* Giải thích vì sao không có cập nhật tự động — đây là lời hứa, không phải lời xin lỗi */
+.up-why { font-size: 13px; line-height: 1.65; color: var(--text-2); max-width: 78ch; }
+.up-why b { color: var(--text); font-weight: 600; }
+
 /* ══════════════════════════════════════════════════════════ Modal & toast */
 
 .modal { position: fixed; inset: 0; background: #000000a8; backdrop-filter: blur(3px);
