@@ -6,8 +6,9 @@ target/
 # Node
 node_modules/
 
-# Impeccable hook cache (generated)
+# Impeccable: cache và báo cáo do công cụ sinh ra (giữ lại config.json)
 .impeccable/hook.cache.json
+.impeccable/critique/
 
 # OS / editor cruft
 .DS_Store
