@@ -27,6 +27,9 @@ const S = {
   pages: new Map(),      // số trang -> mảng thao tác
   pending: new Set(),
   activePreset: null,
+  recoPreset: null,       // kiểu được gợi ý theo kết quả phân tích
+  showAllPresets: false,
+  listOpen: false,        // danh sách chi tiết ở bước 4 mặc định gấp lại
   lastSession: null,
 };
 
@@ -121,10 +124,10 @@ function go(screen) {
   if (screen === 'history') loadHistory();
   if (screen === 'settings') renderSettings();
   if (screen === 'preview') {
-    // Danh sách ảo tính số dòng theo chiều cao khung nhìn. Khi màn còn ẩn thì
-    // chiều cao bằng 0, nên phải vẽ lại ngay lúc nó hiện ra. Gọi đồng bộ để việc
-    // đọc clientHeight buộc trình duyệt tính lại layout ngay, không đợi khung sau.
-    drawRows();
+    // Danh sách ảo tính số dòng theo chiều cao khung nhìn. Khi khối còn gấp lại thì
+    // chiều cao bằng 0, nên chỉ vẽ khi nó đang mở. Gọi đồng bộ để việc đọc
+    // clientHeight buộc trình duyệt tính lại layout ngay, không đợi khung sau.
+    if (S.listOpen) drawRows();
     // Kiểm tra an toàn phải chạy dù người dùng vào bước này bằng đường nào,
     // vì nút Bắt đầu dọn chỉ mở khoá sau khi kiểm tra xong.
     runPreflight();
@@ -180,6 +183,8 @@ async function applyLang(code) {
   renderRecent();
   renderDrives();
   readScope();
+  syncAnFold();
+  syncListToggle();
   if (S.analytics) renderAnalytics();
   if (S.plan) refreshPlan();
 
@@ -281,9 +286,15 @@ function readScope() {
 $$('input[name="scope"]').forEach((r) => { r.onchange = readScope; });
 $('#opt-clean-empty').onchange = readScope;
 
-$('#btn-scan').onclick = async () => {
+/**
+ * Quét thư mục. `recommend` chỉ bật ở lần quét đầu: lúc đó chọn sẵn kiểu sắp xếp
+ * hợp lý rồi đưa người dùng qua màn Phân tích. Khi quét lại từ banner thì giữ
+ * nguyên mọi thiết lập họ đã chỉnh và trả họ về đúng màn đang đứng.
+ */
+async function runScan(recommend) {
   const roots = S.sources.filter((s) => s.check.ok).map((s) => s.path);
   if (!roots.length) return;
+  const back = document.querySelector('.screen.active')?.id.replace('s-', '') || 'analyze';
   readScope();
 
   showRun(t('run.scanning'), false);
@@ -296,9 +307,29 @@ $('#btn-scan').onclick = async () => {
   rememberRecent(roots);
   unlock('analyze', 'design', 'preview');
   renderAnalytics();
-  go('analyze');
+  syncAnFold();
+  clearStale();
+  if (recommend) applyRecommendedPreset();   // chọn sẵn kiểu hợp với thư mục vừa quét
+  go(recommend ? 'analyze' : back);
   refreshPlan();
-};
+}
+
+$('#btn-scan').onclick = () => runScan(true);
+
+/**
+ * Vài lựa chọn an toàn đổi cái phần mềm được phép nhìn thấy, nên phải quét lại mới
+ * có tác dụng. Trước đây chỗ này chỉ hiện một toast rồi biến mất trong ba giây:
+ * người dùng tưởng thay đổi đã áp, và không có đường nào quét lại ngay tại chỗ.
+ */
+function markPlanStale() {
+  $('#stale-design').classList.remove('hidden');
+  $('#stale-preview').classList.remove('hidden');
+}
+function clearStale() {
+  $('#stale-design').classList.add('hidden');
+  $('#stale-preview').classList.add('hidden');
+}
+$$('[data-stale-go]').forEach((b) => { b.onclick = () => runScan(false); });
 
 function rememberRecent(roots) {
   if (!S.settings) return;
@@ -380,21 +411,27 @@ function renderAnalytics() {
       <span><i style="background:var(--surface-2)"></i>${t('cap.free')} <b>${fmtBytes(d.free)}</b></span>`;
   }
 
-  const stats = [
+  // Bốn ô đầu là thứ ai cũng cần biết; phần còn lại thuộc khối chi tiết gấp lại,
+  // để màn này mở ra chỉ có một câu kết luận và vài con số, không phải bảng dày đặc.
+  const main = [
     { b: fmtNum(a.totalFiles), s: t('stat.files') },
     { b: fmtBytes(a.totalBytes), s: t('stat.bytes') },
     { b: fmtNum(a.filesAtRoot), s: t('stat.atRoot'), k: a.filesAtRoot > a.totalFiles * 0.25 ? 'warn' : '' },
     { b: fmtBytes(a.coldBytes), s: t('stat.cold', fmtNum(a.coldCount)), k: a.coldCount ? 'warn' : '' },
+  ];
+  const extra = [
     { b: fmtNum(a.unnamedCount), s: t('stat.unnamed'), k: a.unnamedCount ? 'warn' : '' },
     { b: a.maxDepth, s: t('stat.depth') },
   ];
-  if (a.projectFolders) stats.push({ b: fmtNum(a.projectFolders), s: t('stat.projects'), k: 'good' });
-  if (a.appFoldersProtected) stats.push({ b: fmtNum(a.appFoldersProtected), s: t('stat.apps'), k: 'good' });
-  if (a.systemProtected) stats.push({ b: fmtNum(a.systemProtected), s: t('stat.system'), k: 'good' });
-  if (a.cloudSkipped) stats.push({ b: fmtNum(a.cloudSkipped), s: t('stat.cloud'), k: 'warn' });
+  if (a.projectFolders) extra.push({ b: fmtNum(a.projectFolders), s: t('stat.projects'), k: 'good' });
+  if (a.appFoldersProtected) extra.push({ b: fmtNum(a.appFoldersProtected), s: t('stat.apps'), k: 'good' });
+  if (a.systemProtected) extra.push({ b: fmtNum(a.systemProtected), s: t('stat.system'), k: 'good' });
+  if (a.cloudSkipped) extra.push({ b: fmtNum(a.cloudSkipped), s: t('stat.cloud'), k: 'warn' });
 
-  $('#an-stats').innerHTML = stats.map((x) =>
+  const statHtml = (list) => list.map((x) =>
     `<div class="stat ${x.k || ''}"><b>${x.b}</b><span>${esc(x.s)}</span></div>`).join('');
+  $('#an-stats').innerHTML = statHtml(main);
+  $('#an-stats-extra').innerHTML = statHtml(extra);
 
   // Kết luận bằng một câu, đặt to ngay đầu màn — người mới đọc câu này là đủ hiểu
   const ring = $('#health-ring');
@@ -456,6 +493,18 @@ function renderAnalytics() {
   });
 }
 
+/** Gấp / mở khối biểu đồ chi tiết ở màn Phân tích */
+function syncAnFold() {
+  const open = $('#an-more').getAttribute('aria-expanded') === 'true';
+  $('#an-details').classList.toggle('hidden', !open);
+  $('#an-more span').textContent = t(open ? 'an.less' : 'an.more');
+}
+$('#an-more').onclick = () => {
+  const b = $('#an-more');
+  b.setAttribute('aria-expanded', String(b.getAttribute('aria-expanded') !== 'true'));
+  syncAnFold();
+};
+
 // ═══════════════════════════════════════════════════════════ 3. Màn Thiết kế
 
 const MODE_KEY = { Move: 'mode.move', Copy: 'mode.copy', Hardlink: 'mode.link', ReportOnly: 'mode.report' };
@@ -464,26 +513,74 @@ const MODE_KEY = { Move: 'mode.move', Copy: 'mode.copy', Hardlink: 'mode.link', 
 const PRESET_EG_IDS = ['downloads', 'photos', 'projects', 'company', 'diskfull', 'media', 'archive'];
 const presetEg = (id) => (PRESET_EG_IDS.includes(id) ? t('eg.' + id) : null);
 
+/**
+ * Đoán kiểu sắp xếp hợp nhất với thư mục vừa quét.
+ *
+ * Đây là quyết định trung tâm của cả phần mềm. Bày tám thẻ ngang hàng, không thẻ
+ * nào được chọn sẵn, là đẩy trọn gánh nặng sang người dùng — đúng chỗ người mới
+ * bị tê liệt. Chỉ dựa vào dấu hiệu cấu trúc đọc được từ bản phân tích, không đoán
+ * theo chữ trên nhãn vì nhãn đổi theo ngôn ngữ.
+ */
+function recommendPreset() {
+  const a = S.analytics;
+  if (!a) return null;
+  const has = (id) => S.presets.some((p) => p.id === id);
+  if (a.drive && has('diskfull')) return 'diskfull';              // quét nguyên ổ: lo dung lượng trước
+  if (a.projectFolders >= 3 && has('projects')) return 'projects';
+  if (a.totalBytes && a.coldBytes / a.totalBytes > 0.4 && has('archive')) return 'archive';
+  return has('downloads') ? 'downloads' : (S.presets[0] && S.presets[0].id) || null;
+}
+
+/** Áp một kiểu dựng sẵn vào hồ sơ đang làm */
+function usePreset(p, replan) {
+  S.activePreset = p.id;
+  S.profile.layers = p.layers.slice();
+  S.profile.mode = p.mode;
+  if (p.id === 'dupes') { S.profile.duplicates.enabled = true; S.profile.duplicates.action = 'Report'; }
+  syncControls();
+  renderPresets();
+  renderLayers();
+  if (replan) refreshPlan();
+}
+
+/** Sau khi quét xong thì chọn sẵn kiểu hợp lý, người dùng chỉ cần bấm Bước tiếp theo */
+function applyRecommendedPreset() {
+  S.recoPreset = recommendPreset();
+  const p = S.presets.find((x) => x.id === S.recoPreset);
+  $('#reco-note').classList.toggle('hidden', !p);
+  if (p) usePreset(p, false);
+  else renderPresets();
+}
+
+const PRESET_HEAD = 3;   // số thẻ hiện lúc đầu, phần còn lại nằm sau nút Xem thêm
+
 function renderPresets() {
-  $('#presets').innerHTML = S.presets.map((p) => `
+  // Kiểu được gợi ý luôn đứng đầu, phần còn lại giữ nguyên thứ tự của lõi
+  const ordered = S.recoPreset
+    ? [...S.presets.filter((p) => p.id === S.recoPreset), ...S.presets.filter((p) => p.id !== S.recoPreset)]
+    : S.presets.slice();
+  const showAll = S.showAllPresets || !S.recoPreset;
+  const shown = showAll ? ordered : ordered.slice(0, PRESET_HEAD);
+
+  $('#presets').innerHTML = shown.map((p) => `
     <button class="preset ${S.activePreset === p.id ? 'active' : ''}" data-preset="${p.id}">
+      ${p.id === S.recoPreset ? `<span class="preset-badge">${t('de.reco.badge')}</span>` : ''}
       <b>${esc(p.name)}</b><span>${esc(p.desc)}</span>
       ${presetEg(p.id) ? `<span class="eg">${esc(presetEg(p.id))}</span>` : ''}
     </button>`).join('');
+
+  const rest = ordered.length - PRESET_HEAD;
+  const more = $('#btn-more-presets');
+  more.classList.toggle('hidden', !S.recoPreset || rest <= 0);
+  more.textContent = showAll ? t('de.showLess') : t('de.showMore', fmtNum(rest));
+  more.setAttribute('aria-expanded', String(!!showAll));
+
   $$('[data-preset]').forEach((b) => {
-    b.onclick = () => {
-      const p = S.presets.find((x) => x.id === b.dataset.preset);
-      S.activePreset = p.id;
-      S.profile.layers = p.layers.slice();
-      S.profile.mode = p.mode;
-      if (p.id === 'dupes') { S.profile.duplicates.enabled = true; S.profile.duplicates.action = 'Report'; }
-      syncControls();
-      renderPresets();
-      renderLayers();
-      refreshPlan();
-    };
+    b.onclick = () => usePreset(S.presets.find((x) => x.id === b.dataset.preset), true);
   });
 }
+
+$('#btn-more-presets').onclick = () => { S.showAllPresets = !S.showAllPresets; renderPresets(); };
 
 function critById(id) {
   for (const g of S.catalog) {
@@ -576,6 +673,7 @@ function renderLayers() {
 
   $('#btn-add-layer').disabled = layers.length >= 4;
   $('#cluster-block').classList.toggle('hidden', !layers.some((l) => splitSpec(l)[0] === 'AUTO_PROJECT'));
+  updateAccSummaries();
 }
 
 function splitSpec(spec) {
@@ -632,7 +730,13 @@ $('#btn-add-layer').onclick = () => openCritModal(-1);
 // ── Các điều khiển còn lại
 function syncControls() {
   const p = S.profile;
-  $$('#mode-seg button').forEach((b) => b.classList.toggle('active', b.dataset.mode === p.mode));
+  $$('#mode-seg button').forEach((b) => {
+    const on = b.dataset.mode === p.mode;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-pressed', String(on));   // máy đọc màn hình cần biết nút nào đang chọn
+  });
+  // Chế độ Chỉ xem thử không dọn gì cả, nên nút cuối cùng phải nói đúng việc nó làm
+  $('#btn-apply').textContent = t(p.mode === 'ReportOnly' ? 'pv.apply.report' : 'pv.apply');
   $('#mode-hint').textContent = MODE_KEY[p.mode] ? t(MODE_KEY[p.mode]) : '';
   $('#granularity').value = p.clustering.granularity;
   $('#dup-enabled').checked = p.duplicates.enabled;
@@ -656,9 +760,13 @@ function syncControls() {
   $('#rn-strip').checked = !!(rn.transforms && rn.transforms.stripDiacritics);
   $('#rn-lower').checked = !!(rn.transforms && rn.transforms.lowercase);
   $('#rn-kebab').checked = !!(rn.transforms && rn.transforms.kebab);
-  $$('#rn-place button').forEach((b) => b.classList.toggle('active',
-    (b.dataset.place === 'in') === (rn.inPlace !== false)));
+  $$('#rn-place button').forEach((b) => {
+    const on = (b.dataset.place === 'in') === (rn.inPlace !== false);
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-pressed', String(on));
+  });
   renderRenameChips();
+  updateAccSummaries();
 }
 
 $$('#mode-seg button').forEach((b) => {
@@ -779,13 +887,19 @@ $$('#rn-place button').forEach((b) => {
   };
 });
 $('#sf-sidecar').onchange = (e) => { S.profile.safety.keepSidecarTogether = e.target.checked; refreshPlan(); };
-$('#sf-project').onchange = (e) => { S.profile.safety.treatProjectFoldersAsUnit = e.target.checked; toast(t('de.needRescan'), 'warn'); };
+$('#sf-project').onchange = (e) => {
+  S.profile.safety.treatProjectFoldersAsUnit = e.target.checked;
+  updateAccSummaries(); markPlanStale();
+};
 $('#sf-apps').onchange = (e) => {
   S.profile.safety.protectInstalledApps = e.target.checked;
   if (!e.target.checked) toast(t('de.appsOff'), 'warn', 6000);
-  else toast(t('de.needRescan'), 'warn');
+  updateAccSummaries(); markPlanStale();
 };
-$('#sf-cloud').onchange = (e) => { S.profile.filters.skipCloudPlaceholder = e.target.checked; toast(t('de.needRescan'), 'warn'); };
+$('#sf-cloud').onchange = (e) => {
+  S.profile.filters.skipCloudPlaceholder = e.target.checked;
+  updateAccSummaries(); markPlanStale();
+};
 $('#sf-prefix').onchange = (e) => { S.profile.numberPrefix = e.target.checked; refreshPlan(); };
 
 $('#btn-dest').onclick = async () => {
@@ -804,13 +918,54 @@ $('#btn-dest').onclick = async () => {
 $('#btn-dest-clear').onclick = () => { S.profile.destination = null; syncControls(); refreshPlan(); };
 $('#btn-to-preview').onclick = () => go('preview');
 
-// Phần tự chỉnh mặc định đóng — người mới chỉ thấy 8 thẻ kiểu sắp xếp
+// Phần tự chỉnh mặc định đóng — người mới chỉ thấy vài thẻ kiểu sắp xếp
 $('#adv-toggle').onclick = () => {
   const btn = $('#adv-toggle');
   const open = btn.getAttribute('aria-expanded') === 'true';
   btn.setAttribute('aria-expanded', String(!open));
   $('#adv-block').classList.toggle('hidden', open);
 };
+
+/**
+ * Mỗi mục nâng cao là một ngăn riêng, mặc định đóng, tiêu đề ghi sẵn giá trị đang
+ * dùng. Trước đây mở "Tự chỉnh chi tiết" là xổ ra chừng 35 điều khiển cùng lúc
+ * trong một cột hẹp — đúng chỗ người dùng thấy choáng nhất. Giờ mở ra là sáu dòng,
+ * đọc lướt biết mình đang đặt gì, muốn sửa mục nào thì mở đúng mục đó.
+ */
+$$('[data-acc]').forEach((head) => {
+  head.onclick = () => {
+    const open = head.getAttribute('aria-expanded') === 'true';
+    head.setAttribute('aria-expanded', String(!open));
+    head.nextElementSibling.classList.toggle('hidden', open);
+  };
+});
+
+function updateAccSummaries() {
+  const p = S.profile;
+  if (!p) return;
+
+  const names = p.layers.map((l) => {
+    const c = critById(splitSpec(l)[0]);
+    return c ? c.name : splitSpec(l)[0];
+  });
+  $('#acc-sum-levels').textContent = names.length ? names.join(' › ') : t('acc.sum.none');
+
+  $('#acc-sum-mode').textContent = t('de.mode.' + { Move: 'move', Copy: 'copy', ReportOnly: 'report', Hardlink: 'link' }[p.mode]);
+
+  const d = p.duplicates;
+  $('#acc-sum-dupes').textContent = !d.enabled ? t('acc.sum.off')
+    : t('acc.sum.on') + ' · ' + t({ Quarantine: 'acc.dup.a1', Recycle: 'acc.dup.a2', Report: 'acc.dup.a3' }[d.action]);
+
+  const rn = p.rename || {};
+  $('#acc-sum-rename').textContent = rn.enabled
+    ? t('acc.sum.rename', fmtNum((rn.parts || []).length)) : t('acc.sum.off');
+
+  const on = [p.safety.keepSidecarTogether, p.safety.protectInstalledApps !== false,
+    p.safety.treatProjectFoldersAsUnit, p.filters.skipCloudPlaceholder, p.numberPrefix].filter(Boolean).length;
+  $('#acc-sum-safety').textContent = t('acc.sum.safety', on);
+
+  $('#acc-sum-dest').textContent = p.destination ? tailPath(p.destination, 2) : t('acc.sum.dest.here');
+}
 
 // ── Cây cấu trúc xem nhanh
 function renderTree(folders, opCount) {
@@ -925,29 +1080,94 @@ function plainSummary() {
   return bits.join('. ') + '. ' + t('plain.noDelete');
 }
 
+/**
+ * Bước cuối lấy tóm tắt làm mặt tiền, danh sách làm phần phụ.
+ *
+ * Phần mềm đã hoàn tác được 100%, nên bắt người dùng duyệt hai nghìn dòng là đòi
+ * một nghĩa vụ mà chính kiến trúc an toàn của nó đã gánh hộ. Ở đây họ đọc một câu,
+ * liếc mấy con số, rồi bấm. Con số nào cũng bấm được để lọc thẳng vào nhóm đó,
+ * nên ai muốn soi vẫn tới nơi bằng một cú bấm.
+ */
 function renderSummary() {
   if (!S.plan) return;
   const s = S.plan.summary;
   const off = S.deselected.size;
   $('#plain-summary').textContent = plainSummary();
-  $('#summary').innerHTML = `
-    <span><b>${fmtNum(s.moves)}</b> <i>${t('sum.moved')}</i></span>
-    <span><b>${fmtNum(s.renames)}</b> <i>${t('sum.renamed')}</i></span>
-    <span><b>${fmtNum(s.duplicates)}</b> <i>${t('sum.dupes')}</i></span>
-    <span><b>${fmtNum(s.keeps)}</b> <i>${t('sum.kept')}</i></span>
-    <span><b>${fmtNum(s.newFolders)}</b> <i>${t('sum.folders')}</i></span>
-    <span><b>${fmtBytes(s.totalBytes)}</b> <i>${t('sum.bytes')}</i></span>
-    ${off ? `<span style="color:var(--amber)"><b>${fmtNum(off)}</b> <i>${t('sum.unticked')}</i></span>` : ''}`;
+
+  const chips = [
+    { f: 'moved', b: fmtNum(s.moves), i: t('sum.moved') },
+    { f: 'renamed', b: fmtNum(s.renames), i: t('sum.renamed') },
+    { f: 'dup', b: fmtNum(s.duplicates), i: t('sum.dupes') },
+    { f: 'keep', b: fmtNum(s.keeps), i: t('sum.kept') },
+    { b: fmtNum(s.newFolders), i: t('sum.folders') },
+    { b: fmtBytes(s.totalBytes), i: t('sum.bytes') },
+  ];
+  if (off) chips.push({ b: fmtNum(off), i: t('sum.unticked'), k: 'amber' });
+
+  $('#pv-chips').innerHTML = chips.map((c) => (c.f
+    ? `<button class="pv-chip ${S.filter === c.f ? 'on' : ''}" data-chip="${c.f}"><b>${c.b}</b><i>${esc(c.i)}</i></button>`
+    : `<span class="pv-chip flat ${c.k || ''}"><b>${c.b}</b><i>${esc(c.i)}</i></span>`)).join('');
+
+  $$('[data-chip]').forEach((b) => {
+    b.onclick = () => { setFilter(b.dataset.chip); openList(true); };
+  });
+
+  syncListToggle();
 }
 
+function syncListToggle() {
+  const n = S.listTotal || (S.plan && S.plan.summary.total) || 0;
+  $('#btn-list-toggle').textContent = t(S.listOpen ? 'pv.hideList' : 'pv.showList', fmtNum(n));
+  $('#btn-list-toggle').setAttribute('aria-expanded', String(S.listOpen));
+}
+
+function setFilter(f) {
+  S.filter = f;
+  $$('#filter-seg button').forEach((x) => {
+    const on = x.dataset.f === f;
+    x.classList.toggle('active', on);
+    x.setAttribute('aria-pressed', String(on));
+  });
+  $('#vlist').scrollTop = 0;
+  loadPage(0, true);
+  renderSummary();
+}
+
+function openList(open) {
+  S.listOpen = open;
+  $('#list-block').classList.toggle('hidden', !open);
+  syncListToggle();
+  // Danh sách ảo đo chiều cao khung nhìn; lúc còn ẩn chiều cao bằng 0 nên phải
+  // vẽ lại ngay sau khi nó hiện ra.
+  if (open) requestAnimationFrame(drawRows);
+}
+
+$('#btn-list-toggle').onclick = () => openList(!S.listOpen);
+
+/**
+ * Bỏ tick cả nhóm đang lọc. Trước đây bộ lọc chỉ để nhìn: muốn để yên vài trăm
+ * file trùng lặp thì phải bấm từng dòng một.
+ */
+$('#btn-bulk').onclick = async () => {
+  const ids = await invoke('plan_ids', { filter: S.filter, search: S.search }).catch(() => []);
+  if (!ids.length) return;
+  const allOff = ids.every((id) => S.deselected.has(id));
+  ids.forEach((id) => (allOff ? S.deselected.delete(id) : S.deselected.add(id)));
+  toast(t(allOff ? 'pv.bulk.re' : 'pv.bulk.did', fmtNum(ids.length)), 'ok');
+  drawRows();
+  renderSummary();
+  runPreflight();
+};
+
+/** [class, nhãn, lời giải thích khi rê chuột] — bảy loại nhãn mà không chú giải thì phải đoán */
 function tagOf(op) {
-  if (op.near) return ['tag-near', t('tag.near')];
-  if (op.action === 'Quarantine' || op.action === 'Recycle') return ['tag-dup', t('tag.dup')];
-  if (op.action === 'Keep') return ['tag-keep', t('tag.keep')];
-  if (op.action === 'Copy') return ['tag-copy', t('tag.copy')];
-  if (op.action === 'Hardlink') return ['tag-copy', t('tag.link')];
-  if (op.renamed) return ['tag-ren', t('tag.rename')];
-  return ['tag-move', t('tag.move')];
+  if (op.near) return ['tag-near', t('tag.near'), t('tag.near.tip')];
+  if (op.action === 'Quarantine' || op.action === 'Recycle') return ['tag-dup', t('tag.dup'), t('tag.dup.tip')];
+  if (op.action === 'Keep') return ['tag-keep', t('tag.keep'), t('tag.keep.tip')];
+  if (op.action === 'Copy') return ['tag-copy', t('tag.copy'), t('tag.copy.tip')];
+  if (op.action === 'Hardlink') return ['tag-copy', t('tag.link'), t('tag.link.tip')];
+  if (op.renamed) return ['tag-ren', t('tag.rename'), t('tag.rename.tip')];
+  return ['tag-move', t('tag.move'), t('tag.move.tip')];
 }
 
 async function loadPage(page, reset) {
@@ -962,6 +1182,7 @@ async function loadPage(page, reset) {
     S.listTotal = res.total;
     $('#list-count').textContent = t('pv.rows', fmtNum(res.total));
     $('#vlist-inner').style.height = (res.total * ROW_H) + 'px';
+    syncListToggle();
     drawRows();
   } finally {
     S.pending.delete(page);
@@ -984,17 +1205,18 @@ function drawRows() {
       html += `<div class="vrow" style="top:${i * ROW_H}px"><span class="muted sm">…</span></div>`;
       continue;
     }
-    const [cls, label] = tagOf(op);
+    const [cls, label, tip] = tagOf(op);
     const off = S.deselected.has(op.id);
     const canToggle = op.action !== 'Keep';
     const destText = op.action === 'Recycle' ? t('tag.recycleBin') : tailPath(op.dest, 4);
     html += `
       <div class="vrow ${off ? 'off' : ''}" style="top:${i * ROW_H}px">
-        <input type="checkbox" data-id="${op.id}" ${off || !canToggle ? '' : 'checked'} ${canToggle ? '' : 'disabled'}>
+        <input type="checkbox" data-id="${op.id}" ${off || !canToggle ? '' : 'checked'} ${canToggle ? '' : 'disabled'}
+               aria-label="${esc(t('pv.rowTick'))}: ${esc(baseName(op.src))}">
         <span class="from" title="${esc(op.src)}">${esc(baseName(op.src))}</span>
         <svg class="ar"><use href="#i-arrow"/></svg>
         <span class="to" title="${esc(op.dest)}">${esc(destText)}</span>
-        <span class="tag ${cls}">${label}</span>
+        <span class="tag ${cls}" title="${esc(tip)}">${label}</span>
         <span class="sz">${fmtBytes(op.size)}</span>
       </div>`;
   }
@@ -1024,15 +1246,7 @@ if (window.ResizeObserver) {
   }).observe($('#vlist'));
 }
 
-$$('#filter-seg button').forEach((b) => {
-  b.onclick = () => {
-    $$('#filter-seg button').forEach((x) => x.classList.remove('active'));
-    b.classList.add('active');
-    S.filter = b.dataset.f;
-    $('#vlist').scrollTop = 0;
-    loadPage(0, true);
-  };
-});
+$$('#filter-seg button').forEach((b) => { b.onclick = () => setFilter(b.dataset.f); });
 
 $('#search').oninput = debounce((e) => {
   S.search = e.target.value;
@@ -1334,8 +1548,16 @@ $('#btn-save-settings').onclick = async () => {
   if (settings.langPicked) checkInterrupted();
   else showLangPicker();   // lần đầu mở: hỏi ngôn ngữ trước, mọi thứ khác để sau
 
+  syncAnFold();
+  syncListToggle();
+
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') $('#crit-modal').classList.add('hidden');
+    // Esc phải thoát được MỌI hộp thoại, không riêng hộp chọn tiêu chí. Riêng hộp
+    // chọn ngôn ngữ lần đầu thì không: ở đó buộc phải chọn một thứ tiếng.
+    if (e.key === 'Escape') {
+      $('#crit-modal').classList.add('hidden');
+      $('#confirm-modal').classList.add('hidden');
+    }
     if (e.ctrlKey && e.key === 'o') { e.preventDefault(); $('#btn-pick').click(); }
   });
 })();

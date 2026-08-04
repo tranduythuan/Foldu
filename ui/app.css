@@ -21,10 +21,13 @@
   --accent-soft: #6366f126;
   --accent-text: #a5b4fc;
 
-  --green: #34d399;
-  --amber: #fbbf24;
-  --red:   #f87171;
-  --cyan:  #22d3ee;
+  --green:  #34d399;
+  --amber:  #fbbf24;
+  --red:    #f87171;
+  --cyan:   #22d3ee;
+  /* Ảnh gần giống là phỏng đoán, phải khác hẳn màu trùng lặp tuyệt đối VÀ khác
+     màu đổi tên — trước đây nó dùng chung hổ phách với nhãn Đổi tên. */
+  --violet: #a78bfa;
 
   --r:    10px;
   --r-sm: 7px;
@@ -48,6 +51,7 @@
   --muted:     #77777f;
   --accent-soft: #6366f11a;
   --accent-text: #4f46e5;
+  --violet: #6d28d9;
   --shadow: 0 1px 2px #0000000d, 0 8px 24px -10px #0000001f;
 }
 
@@ -478,6 +482,21 @@ input[type=range]::-webkit-slider-thumb { appearance: none; width: 17px; height:
   padding: 5px 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .preset.active .eg { background: #ffffff10; }
 
+/* Kiểu được chọn sẵn theo kết quả phân tích. Tám thẻ ngang hàng không cái nào
+   nổi lên là chỗ người mới đứng lại lâu nhất — cái nhãn này gỡ đúng nút đó. */
+.preset-badge { display: inline-block; margin-bottom: 6px; padding: 2px 8px;
+  border-radius: 20px; font-size: 10.5px; font-weight: 640; letter-spacing: .01em;
+  background: var(--green); color: #06281c; }
+[data-theme="dark"] .preset-badge { background: #34d399; color: #04231a; }
+.reco-note { margin-top: 10px; font-size: 12.5px; line-height: 1.5; color: var(--text-2);
+  border-left: 2px solid var(--green); padding-left: 10px; }
+
+.show-more { width: 100%; margin-top: 9px; padding: 9px 12px;
+  border: 1px solid var(--border); border-radius: var(--r-sm);
+  background: transparent; color: var(--text-2); font: inherit; font-size: 12.5px;
+  cursor: pointer; transition: all .14s var(--ease); }
+.show-more:hover { background: var(--surface); color: var(--text); border-color: var(--border-2); }
+
 /* Cửa vào phần nâng cao — mặc định đóng, người mới không thấy rối */
 .adv-toggle {
   display: flex; align-items: center; gap: 10px; width: 100%; margin-top: 20px;
@@ -487,7 +506,35 @@ input[type=range]::-webkit-slider-thumb { appearance: none; width: 17px; height:
 .adv-toggle:hover { border-color: var(--muted); color: var(--text); background: var(--surface); }
 .adv-toggle em { margin-left: auto; font-style: normal; font-size: 11.5px; color: var(--muted); }
 .adv-toggle[aria-expanded="true"] { border-style: solid; background: var(--surface); color: var(--text); }
-.adv { margin-top: 16px; padding-top: 18px; border-top: 1px solid var(--border); }
+.adv { margin-top: 16px; padding-top: 6px; border-top: 1px solid var(--border); }
+
+/* Ngăn xếp mục nâng cao. Tiêu đề mang theo giá trị đang đặt, nên đọc lướt sáu dòng
+   là biết cả cấu hình mà không phải mở mục nào. */
+.acc-item { border-bottom: 1px solid var(--border); }
+.acc-item:last-child { border-bottom: 0; }
+.acc-head { display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 13px 2px; border: 0; background: transparent; color: var(--text);
+  font: inherit; font-size: 13.5px; font-weight: 620; text-align: left; cursor: pointer;
+  transition: color .14s var(--ease); }
+.acc-head:hover { color: var(--accent-text); }
+.acc-head > span { flex: none; }
+.acc-head em { flex: 1; min-width: 0; font-style: normal; font-size: 12px; font-weight: 450;
+  color: var(--muted); text-align: right;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acc-head .chev { width: 15px; height: 15px; flex: none; color: var(--muted);
+  transform: rotate(90deg); transition: transform .18s var(--ease); }
+.acc-head[aria-expanded="true"] .chev { transform: rotate(-90deg); }
+.acc-body { padding: 2px 2px 18px; }
+
+/* Nút gấp/mở khối chi tiết ở màn Phân tích */
+.fold-toggle { display: flex; align-items: center; gap: 9px; padding: 10px 14px;
+  border: 1px solid var(--border); border-radius: var(--r-sm);
+  background: transparent; color: var(--text-2); font: inherit; font-size: 13.5px;
+  cursor: pointer; transition: all .14s var(--ease); }
+.fold-toggle:hover { background: var(--surface); color: var(--text); border-color: var(--border-2); }
+.fold-toggle .chev { width: 15px; height: 15px; transform: rotate(90deg);
+  transition: transform .18s var(--ease); }
+.fold-toggle[aria-expanded="true"] .chev { transform: rotate(-90deg); }
 
 .pane-title { font-size: 21px; margin-bottom: 4px; }
 .pane-h2 { font-size: 16px; font-weight: 640; letter-spacing: -.01em;
@@ -582,14 +629,28 @@ input[type=range]::-webkit-slider-thumb { appearance: none; width: 17px; height:
 .tag-ren  { background: #fbbf241f; color: var(--amber); }
 .tag-dup  { background: #f871711f; color: var(--red); }
 /* Màu khác hẳn trùng lặp tuyệt đối: đây là phỏng đoán, cần người xem lại */
-.tag-near { background: #fbbf241f; color: var(--amber); }
+.tag-near { background: #8b5cf61f; color: var(--violet); }
 .tag-keep { background: var(--surface-2); color: var(--muted); }
 .tag-copy { background: #22d3ee1f; color: var(--cyan); }
 
-.summary { display: flex; align-items: center; gap: 22px; padding: 13px 30px; flex-wrap: wrap;
-  background: var(--bg-2); font-size: 12.5px; flex: none; }
-.summary i { font-style: normal; color: var(--muted); }
-.summary b { font-weight: 620; }
+/* ── Bước cuối: tóm tắt là mặt tiền, danh sách là phần phụ.
+   Câu tóm tắt đọc to rõ, các con số bấm được để lọc thẳng vào nhóm tương ứng. */
+.pv-hero { flex: none; padding-bottom: 18px; }
+.pv-plain { font-size: 15.5px; line-height: 1.6; color: var(--text); max-width: 70ch; }
+.pv-chips { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 15px; }
+.pv-chip { display: flex; align-items: baseline; gap: 7px; padding: 9px 14px;
+  border: 1px solid var(--border); border-radius: var(--r);
+  background: var(--surface); color: var(--text); font: inherit; }
+button.pv-chip { cursor: pointer; transition: all .14s var(--ease); }
+button.pv-chip:hover { border-color: var(--border-2); background: var(--surface-2); }
+button.pv-chip.on { border-color: var(--accent); background: var(--accent-soft); }
+.pv-chip b { font-size: 17px; font-weight: 640; letter-spacing: -.02em; }
+.pv-chip i { font-style: normal; font-size: 12px; color: var(--muted); }
+.pv-chip.amber b { color: var(--amber); }
+
+.list-block { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+
+.run-safe { font-size: 12.5px; color: var(--muted); line-height: 1.5; }
 
 .issue { display: flex; gap: 10px; padding: 10px 14px; border-radius: var(--r-sm);
   margin-bottom: 8px; font-size: 12.5px; border: 1px solid; align-items: flex-start; }

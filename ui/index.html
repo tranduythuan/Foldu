@@ -72,7 +72,7 @@
       <button class="icon-btn" id="theme-toggle" data-i18n-title="nav.theme">
         <svg class="ic-dark"><use href="#i-sun"/></svg><svg class="ic-light"><use href="#i-moon"/></svg>
       </button>
-      <span class="ver" data-i18n="nav.version">Bản 1.3</span>
+      <span class="ver" data-i18n="nav.version">Bản 2.0</span>
     </div>
   </aside>
 
@@ -182,30 +182,41 @@
 
         <div class="stat-row mt20" id="an-stats"></div>
 
-        <div class="card mt20">
-          <div class="card-head"><h3 data-i18n="an.folders">Thư mục nào đang chiếm nhiều chỗ nhất</h3></div>
-          <div id="chart-folder" class="bars"></div>
-        </div>
+        <!-- Biểu đồ và bảng chi tiết mặc định gấp lại: câu kết luận + vài ô số
+             là đủ cho người dùng phổ thông; ai tò mò thì mở ra xem thêm. -->
+        <button class="fold-toggle mt20" id="an-more" aria-expanded="false">
+          <svg class="chev"><use href="#i-arrow"/></svg>
+          <span data-i18n="an.more">Xem chi tiết thêm</span>
+        </button>
 
-        <div class="grid-2 mt20">
-          <div class="card">
-            <div class="card-head"><h3 data-i18n="an.types">Loại file nào nặng nhất</h3></div>
-            <div id="chart-type" class="bars"></div>
-          </div>
-          <div class="card">
-            <div class="card-head"><h3 data-i18n="an.years">File cũ mới thế nào</h3></div>
-            <div id="chart-year" class="cols"></div>
-          </div>
-        </div>
+        <div class="hidden" id="an-details">
+          <div class="stat-row mt20" id="an-stats-extra"></div>
 
-        <div class="grid-2 mt20">
-          <div class="card">
-            <div class="card-head"><h3 data-i18n="an.top">20 file nặng nhất</h3><span class="muted sm" data-i18n="an.top.hint"></span></div>
-            <div id="top-files" class="tlist"></div>
+          <div class="card mt20">
+            <div class="card-head"><h3 data-i18n="an.folders">Thư mục nào đang chiếm nhiều chỗ nhất</h3></div>
+            <div id="chart-folder" class="bars"></div>
           </div>
-          <div class="card" id="skipped-card">
-            <div class="card-head"><h3 data-i18n="an.skipped">File phần mềm không đụng tới</h3><span class="pill" id="skip-count"></span></div>
-            <div id="skipped-list" class="tlist"></div>
+
+          <div class="grid-2 mt20">
+            <div class="card">
+              <div class="card-head"><h3 data-i18n="an.types">Loại file nào nặng nhất</h3></div>
+              <div id="chart-type" class="bars"></div>
+            </div>
+            <div class="card">
+              <div class="card-head"><h3 data-i18n="an.years">File cũ mới thế nào</h3></div>
+              <div id="chart-year" class="cols"></div>
+            </div>
+          </div>
+
+          <div class="grid-2 mt20">
+            <div class="card">
+              <div class="card-head"><h3 data-i18n="an.top">20 file nặng nhất</h3><span class="muted sm" data-i18n="an.top.hint"></span></div>
+              <div id="top-files" class="tlist"></div>
+            </div>
+            <div class="card" id="skipped-card">
+              <div class="card-head"><h3 data-i18n="an.skipped">File phần mềm không đụng tới</h3><span class="pill" id="skip-count"></span></div>
+              <div id="skipped-list" class="tlist"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -215,10 +226,18 @@
     <section class="screen" id="s-design">
       <div class="split">
         <div class="split-left">
+          <div class="banner banner-warn hidden" id="stale-design">
+            <svg><use href="#i-warn"/></svg>
+            <div><b data-i18n="stale.title"></b><p data-i18n="stale.body"></p></div>
+            <button class="btn btn-ghost" data-stale-go data-i18n="stale.go">Quét lại ngay</button>
+          </div>
+
           <h1 class="pane-title" data-i18n="de.title">Bạn muốn sắp xếp kiểu nào?</h1>
           <p class="muted sm" data-i18n="de.sub"></p>
+          <p class="reco-note hidden" id="reco-note" data-i18n="de.reco.note"></p>
 
           <div class="presets" id="presets"></div>
+          <button class="show-more hidden" id="btn-more-presets" aria-expanded="false"></button>
 
           <button class="adv-toggle" id="adv-toggle" aria-expanded="false">
             <svg><use href="#i-sliders"/></svg>
@@ -226,110 +245,161 @@
             <em data-i18n="de.adv.note"></em>
           </button>
 
+          <!-- Mỗi mục nâng cao là một ngăn đóng mặc định, tiêu đề kèm tóm tắt giá trị
+               hiện tại — mở "Tự chỉnh chi tiết" chỉ thấy 6 dòng chứ không phải 35 điều khiển. -->
           <div class="adv hidden" id="adv-block">
-            <h2 data-i18n="de.levels">Chia thư mục theo thứ tự này</h2>
-            <p class="muted sm" data-i18n="de.levels.sub"></p>
-            <div class="layers" id="layers"></div>
-            <button class="btn btn-ghost w100 mt8" id="btn-add-layer"><svg><use href="#i-plus"/></svg><span data-i18n="de.addLevel">Thêm một mức</span></button>
 
-            <div class="opt-block mt20 hidden" id="cluster-block">
-              <label class="lbl" data-i18n="de.granularity">Gom nhóm chặt hay lỏng</label>
-              <input type="range" id="granularity" min="0" max="100" value="50">
-              <div class="range-ends"><span data-i18n="de.gran.few"></span><span data-i18n="de.gran.many"></span></div>
-            </div>
+            <div class="acc-item">
+              <button class="acc-head" data-acc="levels" aria-expanded="false">
+                <span data-i18n="de.levels">Chia thư mục theo thứ tự này</span>
+                <em id="acc-sum-levels"></em>
+                <svg class="chev"><use href="#i-arrow"/></svg>
+              </button>
+              <div class="acc-body hidden">
+                <p class="muted sm" data-i18n="de.levels.sub"></p>
+                <div class="layers" id="layers"></div>
+                <button class="btn btn-ghost w100 mt8" id="btn-add-layer"><svg><use href="#i-plus"/></svg><span data-i18n="de.addLevel">Thêm một mức</span></button>
 
-            <h2 class="mt20" data-i18n="de.mode">Làm gì với file</h2>
-            <div class="seg" id="mode-seg">
-              <button data-mode="Move" class="active" data-i18n="de.mode.move">Chuyển đi</button>
-              <button data-mode="Copy" data-i18n="de.mode.copy">Chép ra bản mới</button>
-              <button data-mode="ReportOnly" data-i18n="de.mode.report">Chỉ xem thử</button>
-              <button data-mode="Hardlink" data-i18n="de.mode.link">Tạo lối tắt</button>
-            </div>
-            <p class="muted sm mt8" id="mode-hint"></p>
-
-            <h2 class="mt20" data-i18n="de.dupes">File trùng nhau</h2>
-            <label class="check"><input type="checkbox" id="dup-enabled" checked><span data-i18n="de.dupes.on"></span></label>
-            <div class="dup-opts" id="dup-opts">
-              <label class="lbl mt12" data-i18n="de.dupes.keep"></label>
-              <select id="dup-strategy">
-                <option value="KeepShortestPath" data-i18n="de.dupes.k1"></option>
-                <option value="KeepCleanestName" data-i18n="de.dupes.k2"></option>
-                <option value="KeepOldest" data-i18n="de.dupes.k3"></option>
-                <option value="KeepNewest" data-i18n="de.dupes.k4"></option>
-              </select>
-              <label class="lbl mt12" data-i18n="de.dupes.what"></label>
-              <select id="dup-action">
-                <option value="Quarantine" data-i18n="de.dupes.a1"></option>
-                <option value="Recycle" data-i18n="de.dupes.a2"></option>
-                <option value="Report" data-i18n="de.dupes.a3"></option>
-              </select>
-
-              <label class="check mt12"><input type="checkbox" id="near-enabled" checked><span><span data-i18n="de.near.on"></span> <em data-i18n="de.near.note"></em></span></label>
-              <div id="near-opts">
-                <label class="lbl mt12" data-i18n="de.near.level"></label>
-                <select id="near-threshold">
-                  <option value="6" data-i18n="de.near.l1"></option>
-                  <option value="10" data-i18n="de.near.l2"></option>
-                  <option value="14" data-i18n="de.near.l3"></option>
-                </select>
-                <p class="near-safe"><svg><use href="#i-shield"/></svg><span data-i18n="de.near.safe"></span></p>
-              </div>
-            </div>
-
-            <h2 class="mt20" data-i18n="rn.title">Đổi tên file</h2>
-            <label class="check"><input type="checkbox" id="rename-enabled"><span><span data-i18n="rn.on"></span> <em data-i18n="rn.note"></em></span></label>
-
-            <div id="rename-panel" class="hidden">
-              <div class="rn-danger">
-                <svg><use href="#i-warn"/></svg>
-                <div>
-                  <b data-i18n="rn.warn.title"></b>
-                  <span data-i18n="rn.warn.body"></span>
+                <div class="opt-block mt20 hidden" id="cluster-block">
+                  <label class="lbl" data-i18n="de.granularity">Gom nhóm chặt hay lỏng</label>
+                  <input type="range" id="granularity" min="0" max="100" value="50">
+                  <div class="range-ends"><span data-i18n="de.gran.few"></span><span data-i18n="de.gran.many"></span></div>
                 </div>
               </div>
-
-              <label class="lbl mt12" data-i18n="rn.build"></label>
-              <div class="rn-add" id="rn-add">
-                <button type="button" data-add="date"><svg><use href="#i-clock"/></svg><span data-i18n="rn.p.date"></span></button>
-                <button type="button" data-add="name"><svg><use href="#i-file"/></svg><span data-i18n="rn.p.name"></span></button>
-                <button type="button" data-add="folder"><svg><use href="#i-folder"/></svg><span data-i18n="rn.p.folder"></span></button>
-                <button type="button" data-add="counter"><span class="rn-num">01</span><span data-i18n="rn.p.counter"></span></button>
-                <button type="button" data-add="text"><span class="rn-abc">Aa</span><span data-i18n="rn.p.text"></span></button>
-              </div>
-
-              <div class="rn-chips" id="rn-chips"></div>
-              <p class="rn-empty muted sm hidden" id="rn-empty" data-i18n="rn.empty"></p>
-
-              <div class="rn-preview">
-                <span class="rn-pv-label" data-i18n="rn.example"></span>
-                <div class="rn-pv-row"><code id="rn-before"></code><svg><use href="#i-arrow"/></svg><code id="rn-after" class="rn-new"></code></div>
-              </div>
-
-              <label class="lbl mt12" data-i18n="rn.tidy"></label>
-              <label class="check"><input type="checkbox" id="rn-strip"><span data-i18n="rn.strip"></span></label>
-              <label class="check"><input type="checkbox" id="rn-lower"><span data-i18n="rn.lower"></span></label>
-              <label class="check"><input type="checkbox" id="rn-kebab"><span data-i18n="rn.kebab"></span></label>
-
-              <label class="lbl mt12" data-i18n="rn.where"></label>
-              <div class="seg sm" id="rn-place">
-                <button data-place="in" class="active" data-i18n="rn.place.in"></button>
-                <button data-place="sort" data-i18n="rn.place.sort"></button>
-              </div>
-              <p class="rn-safe"><svg><use href="#i-shield"/></svg><span data-i18n="rn.rollback"></span></p>
             </div>
 
-            <h2 class="mt20" data-i18n="de.safety">Giữ an toàn</h2>
-            <label class="check"><input type="checkbox" id="sf-sidecar" checked><span><span data-i18n="de.sf.sidecar"></span> <em data-i18n="de.sf.sidecar.note"></em></span></label>
-            <label class="check"><input type="checkbox" id="sf-apps" checked><span><span data-i18n="de.sf.apps"></span> <em data-i18n="de.sf.apps.note"></em></span></label>
-            <label class="check"><input type="checkbox" id="sf-project" checked><span data-i18n="de.sf.project"></span></label>
-            <label class="check"><input type="checkbox" id="sf-cloud" checked><span data-i18n="de.sf.cloud"></span></label>
-            <label class="check"><input type="checkbox" id="sf-prefix" checked><span data-i18n="de.sf.prefix"></span></label>
+            <div class="acc-item">
+              <button class="acc-head" data-acc="mode" aria-expanded="false">
+                <span data-i18n="de.mode">Làm gì với file</span>
+                <em id="acc-sum-mode"></em>
+                <svg class="chev"><use href="#i-arrow"/></svg>
+              </button>
+              <div class="acc-body hidden">
+                <div class="seg" id="mode-seg">
+                  <button data-mode="Move" class="active" data-i18n="de.mode.move">Chuyển đi</button>
+                  <button data-mode="Copy" data-i18n="de.mode.copy">Chép ra bản mới</button>
+                  <button data-mode="ReportOnly" data-i18n="de.mode.report">Chỉ xem thử</button>
+                  <button data-mode="Hardlink" data-i18n="de.mode.link">Tạo liên kết</button>
+                </div>
+                <p class="muted sm mt8" id="mode-hint"></p>
+              </div>
+            </div>
 
-            <h2 class="mt20" data-i18n="de.dest">Xếp vào đâu</h2>
-            <div class="dest-row">
-              <input type="text" id="dest-path" data-i18n-ph="de.dest.ph" readonly>
-              <button class="btn btn-ghost" id="btn-dest" data-i18n="de.dest.pick">Chọn chỗ khác</button>
-              <button class="btn btn-ghost" id="btn-dest-clear" data-i18n-title="de.dest.clear"><svg><use href="#i-x"/></svg></button>
+            <div class="acc-item">
+              <button class="acc-head" data-acc="dupes" aria-expanded="false">
+                <span data-i18n="de.dupes">File trùng nhau</span>
+                <em id="acc-sum-dupes"></em>
+                <svg class="chev"><use href="#i-arrow"/></svg>
+              </button>
+              <div class="acc-body hidden">
+                <label class="check"><input type="checkbox" id="dup-enabled" checked><span data-i18n="de.dupes.on"></span></label>
+                <div class="dup-opts" id="dup-opts">
+                  <label class="lbl mt12" data-i18n="de.dupes.keep"></label>
+                  <select id="dup-strategy">
+                    <option value="KeepShortestPath" data-i18n="de.dupes.k1"></option>
+                    <option value="KeepCleanestName" data-i18n="de.dupes.k2"></option>
+                    <option value="KeepOldest" data-i18n="de.dupes.k3"></option>
+                    <option value="KeepNewest" data-i18n="de.dupes.k4"></option>
+                  </select>
+                  <label class="lbl mt12" data-i18n="de.dupes.what"></label>
+                  <select id="dup-action">
+                    <option value="Quarantine" data-i18n="de.dupes.a1"></option>
+                    <option value="Recycle" data-i18n="de.dupes.a2"></option>
+                    <option value="Report" data-i18n="de.dupes.a3"></option>
+                  </select>
+
+                  <label class="check mt12"><input type="checkbox" id="near-enabled" checked><span><span data-i18n="de.near.on"></span> <em data-i18n="de.near.note"></em></span></label>
+                  <div id="near-opts">
+                    <label class="lbl mt12" data-i18n="de.near.level"></label>
+                    <select id="near-threshold">
+                      <option value="6" data-i18n="de.near.l1"></option>
+                      <option value="10" data-i18n="de.near.l2"></option>
+                      <option value="14" data-i18n="de.near.l3"></option>
+                    </select>
+                    <p class="near-safe"><svg><use href="#i-shield"/></svg><span data-i18n="de.near.safe"></span></p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="acc-item">
+              <button class="acc-head" data-acc="rename" aria-expanded="false">
+                <span data-i18n="rn.title">Đổi tên file</span>
+                <em id="acc-sum-rename"></em>
+                <svg class="chev"><use href="#i-arrow"/></svg>
+              </button>
+              <div class="acc-body hidden">
+                <label class="check"><input type="checkbox" id="rename-enabled"><span><span data-i18n="rn.on"></span> <em data-i18n="rn.note"></em></span></label>
+
+                <div id="rename-panel" class="hidden">
+                  <div class="rn-danger">
+                    <svg><use href="#i-warn"/></svg>
+                    <div>
+                      <b data-i18n="rn.warn.title"></b>
+                      <span data-i18n="rn.warn.body"></span>
+                    </div>
+                  </div>
+
+                  <label class="lbl mt12" data-i18n="rn.build"></label>
+                  <div class="rn-add" id="rn-add">
+                    <button type="button" data-add="date"><svg><use href="#i-clock"/></svg><span data-i18n="rn.p.date"></span></button>
+                    <button type="button" data-add="name"><svg><use href="#i-file"/></svg><span data-i18n="rn.p.name"></span></button>
+                    <button type="button" data-add="folder"><svg><use href="#i-folder"/></svg><span data-i18n="rn.p.folder"></span></button>
+                    <button type="button" data-add="counter"><span class="rn-num">01</span><span data-i18n="rn.p.counter"></span></button>
+                    <button type="button" data-add="text"><span class="rn-abc">Aa</span><span data-i18n="rn.p.text"></span></button>
+                  </div>
+
+                  <div class="rn-chips" id="rn-chips"></div>
+                  <p class="rn-empty muted sm hidden" id="rn-empty" data-i18n="rn.empty"></p>
+
+                  <div class="rn-preview">
+                    <span class="rn-pv-label" data-i18n="rn.example"></span>
+                    <div class="rn-pv-row"><code id="rn-before"></code><svg><use href="#i-arrow"/></svg><code id="rn-after" class="rn-new"></code></div>
+                  </div>
+
+                  <label class="lbl mt12" data-i18n="rn.tidy"></label>
+                  <label class="check"><input type="checkbox" id="rn-strip"><span data-i18n="rn.strip"></span></label>
+                  <label class="check"><input type="checkbox" id="rn-lower"><span data-i18n="rn.lower"></span></label>
+                  <label class="check"><input type="checkbox" id="rn-kebab"><span data-i18n="rn.kebab"></span></label>
+
+                  <label class="lbl mt12" data-i18n="rn.where"></label>
+                  <div class="seg sm" id="rn-place">
+                    <button data-place="in" class="active" data-i18n="rn.place.in"></button>
+                    <button data-place="sort" data-i18n="rn.place.sort"></button>
+                  </div>
+                  <p class="rn-safe"><svg><use href="#i-shield"/></svg><span data-i18n="rn.rollback"></span></p>
+                </div>
+              </div>
+            </div>
+
+            <div class="acc-item">
+              <button class="acc-head" data-acc="safety" aria-expanded="false">
+                <span data-i18n="de.safety">Giữ an toàn</span>
+                <em id="acc-sum-safety"></em>
+                <svg class="chev"><use href="#i-arrow"/></svg>
+              </button>
+              <div class="acc-body hidden">
+                <label class="check"><input type="checkbox" id="sf-sidecar" checked><span><span data-i18n="de.sf.sidecar"></span> <em data-i18n="de.sf.sidecar.note"></em></span></label>
+                <label class="check"><input type="checkbox" id="sf-apps" checked><span><span data-i18n="de.sf.apps"></span> <em data-i18n="de.sf.apps.note"></em></span></label>
+                <label class="check"><input type="checkbox" id="sf-project" checked><span data-i18n="de.sf.project"></span></label>
+                <label class="check"><input type="checkbox" id="sf-cloud" checked><span data-i18n="de.sf.cloud"></span></label>
+                <label class="check"><input type="checkbox" id="sf-prefix" checked><span data-i18n="de.sf.prefix"></span></label>
+              </div>
+            </div>
+
+            <div class="acc-item">
+              <button class="acc-head" data-acc="dest" aria-expanded="false">
+                <span data-i18n="de.dest">Xếp vào đâu</span>
+                <em id="acc-sum-dest"></em>
+                <svg class="chev"><use href="#i-arrow"/></svg>
+              </button>
+              <div class="acc-body hidden">
+                <div class="dest-row">
+                  <input type="text" id="dest-path" data-i18n-ph="de.dest.ph" readonly>
+                  <button class="btn btn-ghost" id="btn-dest" data-i18n="de.dest.pick">Chọn chỗ khác</button>
+                  <button class="btn btn-ghost" id="btn-dest-clear" data-i18n-title="de.dest.clear"><svg><use href="#i-x"/></svg></button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -349,39 +419,60 @@
     <section class="screen" id="s-preview">
       <div class="preview-wrap">
         <header class="head pad-x">
-          <div><h1 data-i18n="pv.title">Kiểm tra lần cuối</h1><p class="muted" id="plain-summary"></p></div>
+          <div><h1 data-i18n="pv.title">Kiểm tra lần cuối</h1></div>
           <div class="row">
             <button class="btn btn-ghost" id="btn-export"><svg><use href="#i-export"/></svg><span data-i18n="pv.export">Lưu báo cáo</span></button>
             <button class="btn btn-primary btn-lg" id="btn-apply" disabled data-i18n="pv.apply">Bắt đầu dọn</button>
           </div>
         </header>
 
+        <div class="pad-x">
+          <div class="banner banner-warn hidden" id="stale-preview">
+            <svg><use href="#i-warn"/></svg>
+            <div><b data-i18n="stale.title"></b><p data-i18n="stale.body"></p></div>
+            <button class="btn btn-ghost" data-stale-go data-i18n="stale.go">Quét lại ngay</button>
+          </div>
+        </div>
+
         <div id="pf-box" class="pad-x"></div>
 
-        <div class="toolbar pad-x">
-          <div class="seg sm" id="filter-seg">
-            <button data-f="" class="active" data-i18n="pv.f.all">Tất cả</button>
-            <button data-f="moved" data-i18n="pv.f.moved">Được chuyển</button>
-            <button data-f="renamed" data-i18n="pv.f.renamed">Bị đổi tên</button>
-            <button data-f="dup" data-i18n="pv.f.dup">Trùng nhau</button>
-            <button data-f="keep" data-i18n="pv.f.keep">Nằm yên</button>
+        <!-- Tóm tắt là mặt tiền: một câu + các con số bấm được. Undo đã đáng tin
+             100% nên danh sách 2.000 dòng là công cụ cho ai muốn soi, không phải
+             nghĩa vụ phải duyệt — mặc định gập lại. -->
+        <div class="pv-hero pad-x" id="pv-hero">
+          <p class="pv-plain" id="plain-summary"></p>
+          <div class="pv-chips" id="pv-chips"></div>
+          <div class="row mt12">
+            <button class="btn btn-ghost" id="btn-list-toggle" aria-expanded="false"></button>
+            <span class="muted sm" data-i18n="pv.hero.hint"></span>
           </div>
-          <input type="search" id="search" data-i18n-ph="pv.search">
-          <span class="muted sm" id="list-count"></span>
         </div>
 
-        <div class="vlist-head pad-x">
-          <span class="c-check"></span>
-          <span class="c-from" data-i18n="pv.col.name">Tên file</span>
-          <span class="c-ar"></span>
-          <span class="c-to" data-i18n="pv.col.dest">Sẽ nằm trong thư mục</span>
-          <span class="c-tag" data-i18n="pv.col.what">Việc gì</span>
-          <span class="c-size" data-i18n="pv.col.size">Nặng</span>
+        <div class="list-block hidden" id="list-block">
+          <div class="toolbar pad-x">
+            <div class="seg sm" id="filter-seg">
+              <button data-f="" class="active" data-i18n="pv.f.all">Tất cả</button>
+              <button data-f="moved" data-i18n="pv.f.moved">Được chuyển</button>
+              <button data-f="renamed" data-i18n="pv.f.renamed">Bị đổi tên</button>
+              <button data-f="dup" data-i18n="pv.f.dup">Trùng nhau</button>
+              <button data-f="keep" data-i18n="pv.f.keep">Nằm yên</button>
+            </div>
+            <input type="search" id="search" data-i18n-ph="pv.search">
+            <button class="btn btn-ghost" id="btn-bulk" data-i18n="pv.bulk">Bỏ tick cả nhóm đang lọc</button>
+            <span class="muted sm" id="list-count"></span>
+          </div>
+
+          <div class="vlist-head pad-x">
+            <span class="c-check"></span>
+            <span class="c-from" data-i18n="pv.col.name">Tên file</span>
+            <span class="c-ar"></span>
+            <span class="c-to" data-i18n="pv.col.dest">Sẽ nằm trong thư mục</span>
+            <span class="c-tag" data-i18n="pv.col.what">Việc gì</span>
+            <span class="c-size" data-i18n="pv.col.size">Nặng</span>
+          </div>
+
+          <div class="vlist" id="vlist"><div class="vlist-inner" id="vlist-inner"></div></div>
         </div>
-
-        <div class="vlist" id="vlist"><div class="vlist-inner" id="vlist-inner"></div></div>
-
-        <footer class="summary" id="summary"></footer>
       </div>
     </section>
 
@@ -395,6 +486,7 @@
           <div class="row-between sm muted mt8"><span id="run-count"></span><span id="run-pct"></span></div>
           <div class="row mt20" id="run-actions">
             <button class="btn btn-danger" id="btn-cancel" data-i18n="run.cancel">Dừng lại</button>
+            <span class="run-safe" data-i18n="run.safe"></span>
           </div>
         </div>
         <div id="run-result"></div>
@@ -441,16 +533,16 @@
 </div>
 
 <div class="modal hidden" id="crit-modal">
-  <div class="modal-box">
-    <header><h2 data-i18n="crit.title">Chia thư mục theo cái gì?</h2><button class="icon-btn" id="crit-close"><svg><use href="#i-x"/></svg></button></header>
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="crit-title">
+    <header><h2 id="crit-title" data-i18n="crit.title">Chia thư mục theo cái gì?</h2><button class="icon-btn" id="crit-close"><svg><use href="#i-x"/></svg></button></header>
     <input type="search" id="crit-search" data-i18n-ph="crit.search">
     <div class="crit-list" id="crit-list"></div>
   </div>
 </div>
 
 <div class="modal hidden" id="confirm-modal">
-  <div class="modal-box narrow">
-    <header><h2 data-i18n="cf.title">Bắt đầu dọn?</h2><button class="icon-btn" id="confirm-close"><svg><use href="#i-x"/></svg></button></header>
+  <div class="modal-box narrow" role="dialog" aria-modal="true" aria-labelledby="cf-title">
+    <header><h2 id="cf-title" data-i18n="cf.title">Bắt đầu dọn?</h2><button class="icon-btn" id="confirm-close"><svg><use href="#i-x"/></svg></button></header>
     <div class="confirm-body">
       <p id="confirm-text"></p>
       <div class="confirm-safe">
@@ -468,7 +560,7 @@
 <!-- Hỏi ngôn ngữ ở lần mở đầu tiên. Cố tình viết song ngữ vì lúc này chưa biết
      người dùng đọc được thứ tiếng nào. -->
 <div class="modal hidden" id="lang-modal">
-  <div class="modal-box lang-pick">
+  <div class="modal-box lang-pick" role="dialog" aria-modal="true">
     <div class="lang-head">
       <div class="brand-mark lg"><i></i><i></i><i></i></div>
       <h2>Chọn ngôn ngữ<span>Choose your language</span></h2>
@@ -494,7 +586,8 @@
   </div>
 </div>
 
-<div id="toasts"></div>
+<!-- aria-live: máy đọc màn hình đọc được các thông báo thoáng qua -->
+<div id="toasts" aria-live="polite"></div>
 
 <script src="i18n.js"></script>
 <script src="app.js"></script>

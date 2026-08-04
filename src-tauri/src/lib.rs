@@ -305,20 +305,15 @@ struct PlanPage {
     total: usize,
 }
 
-/// Lay tung trang danh sach thao tac — tranh nem 100.000 dong sang giao dien mot luc.
+/// Loc danh sach thao tac theo dung mot bo quy tac, dung chung cho `plan_page` va
+/// `plan_ids` — hai lenh phai nhin thay y het mot tap thi nut "bo tick ca nhom" moi
+/// khop voi cai nguoi dung dang xem.
 /// `filter`: "" | "moved" | "renamed" | "dup" | "keep"
-#[tauri::command]
-fn plan_page(offset: usize, limit: usize, filter: String, search: String) -> PlanPage {
-    let s = STATE.lock().unwrap();
-    let plan = match &s.plan {
-        Some(p) => p,
-        None => return PlanPage { ops: vec![], total: 0 },
-    };
-    let needle = util::norm_key(&search);
-    let filtered: Vec<&PlanOp> = plan
-        .ops
+fn filter_ops<'a>(plan: &'a Plan, filter: &str, search: &str) -> Vec<&'a PlanOp> {
+    let needle = util::norm_key(search);
+    plan.ops
         .iter()
-        .filter(|o| match filter.as_str() {
+        .filter(|o| match filter {
             "moved" => matches!(
                 o.action,
                 planner::OpAction::Move | planner::OpAction::Copy | planner::OpAction::Hardlink
@@ -336,7 +331,18 @@ fn plan_page(offset: usize, limit: usize, filter: String, search: String) -> Pla
                 || util::norm_key(&o.src.to_string_lossy()).contains(&needle)
                 || util::norm_key(&o.dest.to_string_lossy()).contains(&needle)
         })
-        .collect();
+        .collect()
+}
+
+/// Lay tung trang danh sach thao tac — tranh nem 100.000 dong sang giao dien mot luc.
+#[tauri::command]
+fn plan_page(offset: usize, limit: usize, filter: String, search: String) -> PlanPage {
+    let s = STATE.lock().unwrap();
+    let plan = match &s.plan {
+        Some(p) => p,
+        None => return PlanPage { ops: vec![], total: 0 },
+    };
+    let filtered = filter_ops(plan, &filter, &search);
 
     PlanPage {
         total: filtered.len(),
@@ -347,6 +353,22 @@ fn plan_page(offset: usize, limit: usize, filter: String, search: String) -> Pla
             .cloned()
             .collect(),
     }
+}
+
+/// Ma so cua MOI thao tac khop bo loc, de giao dien bo tick ca nhom trong mot lan.
+/// Chi doc, khong dong toi ke hoach. Bo qua thao tac Keep vi chung von khong lam gi.
+#[tauri::command]
+fn plan_ids(filter: String, search: String) -> Vec<u32> {
+    let s = STATE.lock().unwrap();
+    let plan = match &s.plan {
+        Some(p) => p,
+        None => return vec![],
+    };
+    filter_ops(plan, &filter, &search)
+        .into_iter()
+        .filter(|o| o.action != planner::OpAction::Keep)
+        .map(|o| o.id)
+        .collect()
 }
 
 #[tauri::command]
@@ -786,6 +808,7 @@ pub fn run() {
             scan_folders,
             make_plan,
             plan_page,
+            plan_ids,
             run_preflight,
             apply_plan,
             cancel_run,
