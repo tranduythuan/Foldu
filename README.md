@@ -20,6 +20,9 @@ Chạy trên **Windows 10 / 11**. Máy cần **WebView2** (có sẵn trên gần
 
 > **Lần đầu mở, Windows có thể hiện bảng xanh "Windows protected your PC".** Đó là vì phần mềm miễn phí này chưa mua chứng chỉ ký số, **không phải virus**. Bấm **More info → Run anyway** là chạy được. (Muốn hết cảnh báo hẳn thì phải mua chứng chỉ ký số ~vài trăm USD/năm — không cần thiết cho bản cá nhân.)
 
+🔒 **Foldu không gửi dữ liệu của bạn đi đâu cả — và bạn tự kiểm tra được điều đó.**
+Xem [PRIVACY.md](PRIVACY.md): cách chặn phần mềm bằng tường lửa rồi thấy nó vẫn chạy đủ tính năng, vì sao nhận diện ảnh gần giống không cần mạng, và Foldu lưu đúng những gì trên máy bạn.
+
 ---
 
 ## Chạy và chia sẻ (khi tự build)
@@ -228,7 +231,7 @@ Rules Engine (if/then) · Watcher & Scheduler · Chính sách lưu trữ · CLI 
 └── reports\          Báo cáo HTML / CSV
 ```
 
-Gỡ phần mềm = xoá file `.exe` và thư mục trên. Không đụng vào registry.
+Gỡ bản chạy thẳng = xoá file `.exe` và thư mục trên, không để lại gì trong registry. Bản cài đặt thì gỡ qua "Apps & features" như phần mềm bình thường. Chi tiết đầy đủ về dữ liệu và quyền riêng tư: [PRIVACY.md](PRIVACY.md).
 
 ---
 

@@ -20,6 +20,9 @@ Runs on **Windows 10 / 11**. Needs **WebView2** (already present on almost every
 
 > **On first launch, Windows may show a blue "Windows protected your PC" box.** That is because this free app isn't code-signed — it is **not a virus**. Click **More info → Run anyway**. (Removing the warning entirely would require a code-signing certificate at ~a few hundred USD/year — unnecessary for a personal project.)
 
+🔒 **Foldu sends none of your data anywhere — and you can verify that yourself.**
+See [PRIVACY.en.md](PRIVACY.en.md): how to block the app in your firewall and watch every feature still work, why near-duplicate photo matching needs no network, and exactly what Foldu stores on your machine.
+
 ---
 
 ## Build from source
@@ -214,7 +217,7 @@ Rules Engine (if/then) · Watcher & Scheduler · Retention policy · CLI · `AI_
 └── reports\          HTML / CSV reports
 ```
 
-Uninstalling = delete the `.exe` and the folder above. It never touches the registry.
+Uninstalling the portable build = delete the `.exe` and the folder above, leaving nothing in the registry. The installer build uninstalls through "Apps & features" like any normal program. Full detail on data and privacy: [PRIVACY.en.md](PRIVACY.en.md).
 
 ---
 
