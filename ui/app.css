@@ -486,10 +486,10 @@ input[type=range]::-webkit-slider-thumb { appearance: none; width: 17px; height:
    nổi lên là chỗ người mới đứng lại lâu nhất — cái nhãn này gỡ đúng nút đó. */
 .preset-badge { display: inline-block; margin-bottom: 6px; padding: 2px 8px;
   border-radius: 20px; font-size: 10.5px; font-weight: 640; letter-spacing: .01em;
-  background: var(--green); color: #06281c; }
-[data-theme="dark"] .preset-badge { background: #34d399; color: #04231a; }
-.reco-note { margin-top: 10px; font-size: 12.5px; line-height: 1.5; color: var(--text-2);
-  border-left: 2px solid var(--green); padding-left: 10px; }
+  background: var(--green); color: #04231a; }
+/* Cái nhãn xanh ở trên đã nói đủ; dòng này chỉ giải thích thêm nên để tiếng nhỏ,
+   không cần thêm một mảng màu xanh nữa tranh chú ý với chính nó. */
+.reco-note { margin-top: 10px; font-size: 12.5px; line-height: 1.5; color: var(--text-2); }
 
 .show-more { width: 100%; margin-top: 9px; padding: 9px 12px;
   border: 1px solid var(--border); border-radius: var(--r-sm);
