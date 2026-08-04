@@ -1,10 +1,13 @@
 name: Release
 
 # Chay khi ban day mot tag dang v* len GitHub, vi du:
-#   git tag v1.1.0
-#   git push origin v1.1.0
+#   git tag v1.3.0
+#   git push origin v1.3.0
 # GitHub se tu build tren may ao Windows va tu dinh kem foldu.exe + bo cai
 # vao trang Release cua tag do. Khong can build/upload tay nua.
+#
+# Cac action deu dung ban chay tren Node 24. Node 20 da het duoc ho tro va
+# GitHub bat cac action cu chay ep tren Node 24 kem mot canh bao.
 
 on:
   push:
@@ -19,12 +22,12 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout ma nguon
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Cai Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Cai Rust (stable)
         uses: dtolnay/rust-toolchain@stable
@@ -41,7 +44,7 @@ jobs:
         run: npm run build
 
       - name: Phat hanh va dinh kem file .exe
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           name: Foldu ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}
